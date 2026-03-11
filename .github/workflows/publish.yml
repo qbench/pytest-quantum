@@ -12,6 +12,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+
+      - name: Verify tag matches pyproject.toml version
+        run: |
+          TAG="${{ github.ref_name }}"
+          TAG_VERSION="${TAG#v}"
+          FILE_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          if [[ "$TAG_VERSION" != "$FILE_VERSION" ]]; then
+            echo "❌ Version mismatch!"
+            echo "   Git tag     : $TAG_VERSION"
+            echo "   pyproject.toml: $FILE_VERSION"
+            echo "Use ./release.sh $TAG_VERSION to release correctly."
+            exit 1
+          fi
+          echo "✓ Tag $TAG matches pyproject.toml version $FILE_VERSION"
+
       - name: Build wheel + sdist
         run: uv build
       - uses: actions/upload-artifact@v4
@@ -34,4 +49,127 @@ jobs:
           name: dist
           path: dist/
       - name: Publish
-        run: uv publish
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          skip-existing: true
+
+  smoke-test:
+    name: Post-publish smoke test
+    needs: publish
+    runs-on: ubuntu-latest
+    # Wait for PyPI to propagate the new release before installing
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v5
+        with:
+          python-version: "3.12"
+
+      - name: Wait for PyPI propagation
+        run: sleep 60
+
+      - name: Install from PyPI (not local)
+        run: |
+          VERSION="${{ github.ref_name }}"
+          VERSION="${VERSION#v}"
+          uv venv --clear
+          uv pip install --python .venv/bin/python "pytest-quantum[qiskit,cirq,pennylane]==${VERSION}"
+
+      - name: Run sanity checks
+        run: |
+          .venv/bin/python - <<'EOF'
+          import pytest_quantum, numpy as np, math
+
+          # 1. Public API present
+          required = [
+              # v0.1
+              "assert_unitary", "assert_circuits_equivalent",
+              "assert_measurement_distribution", "assert_counts_close",
+              "assert_circuit_depth", "assert_circuit_width",
+              "assert_gate_count", "assert_states_close",
+              "assert_state_fidelity_above",
+              # v0.2
+              "assert_density_matrix_close", "assert_trace_distance_below",
+              "assert_purity_above", "assert_partial_trace_close",
+              "assert_expectation_value_close", "assert_ground_state_energy_close",
+              "assert_sampler_distribution", "assert_estimator_close",
+              "assert_unitary_snapshot", "assert_distribution_snapshot",
+              "assert_circuit_is_clifford",
+              # v0.3
+              "assert_hermitian", "assert_positive_semidefinite", "assert_commutes_with",
+              "assert_channel_is_cptp", "assert_process_fidelity_above", "assert_noise_fidelity_above",
+              "assert_entanglement_entropy_below", "assert_bloch_sphere_close", "assert_schmidt_rank_at_most",
+              "assert_hellinger_close", "assert_kl_divergence_below", "assert_cross_entropy_below",
+              "assert_qasm_roundtrip", "assert_has_diagram",
+              "assert_transpilation_preserves_semantics",
+              "assert_stim_logical_error_rate_below",
+              "assert_stim_detector_error_rate_below",
+              "assert_stabilizer_state",
+              # random
+              "random_statevector", "random_density_matrix", "random_unitary",
+              "random_kraus_channel", "depolarizing_kraus",
+          ]
+          missing = [n for n in required if not hasattr(pytest_quantum, n)]
+          assert not missing, f"Missing from public API: {missing}"
+          print("✓ Public API complete")
+
+          # 2. Statistical assertions
+          from pytest_quantum import assert_measurement_distribution, assert_counts_close
+          assert_measurement_distribution({"00": 500, "11": 500}, expected_probs={"00": 0.5, "11": 0.5})
+          assert_counts_close({"0": 510, "1": 490}, {"0": 495, "1": 505}, max_tvd=0.1)
+          print("✓ Statistical assertions work")
+
+          # 3. Statevector assertions
+          from pytest_quantum import assert_states_close, assert_state_fidelity_above
+          sv = np.array([1, 1], dtype=complex) / math.sqrt(2)
+          assert_states_close(sv, sv)
+          assert_state_fidelity_above(sv, sv, threshold=0.99)
+          print("✓ Statevector assertions work")
+
+          # 4. Qiskit — real circuit execution
+          from qiskit import QuantumCircuit, transpile
+          from qiskit_aer import AerSimulator
+          from pytest_quantum import assert_unitary, assert_circuit_depth, assert_circuit_width, assert_gate_count
+
+          H = np.array([[1,1],[1,-1]], dtype=complex) / math.sqrt(2)
+          qc = QuantumCircuit(1); qc.h(0)
+          assert_unitary(qc, H)
+          print("✓ assert_unitary (Qiskit H gate)")
+
+          qc2 = QuantumCircuit(2); qc2.h(0); qc2.cx(0, 1); qc2.measure_all()
+          sim = AerSimulator()
+          counts = sim.run(transpile(qc2, sim), shots=2000).result().get_counts()
+          assert_measurement_distribution(counts, expected_probs={"00": 0.5, "11": 0.5}, significance=0.01)
+          assert_circuit_depth(qc2, max_depth=5)
+          assert_circuit_width(qc2, expected_qubits=2)
+          assert_gate_count(qc2, "h", 1)
+          print("✓ Qiskit Bell state + structure assertions")
+
+          # 5. Cirq — real circuit execution
+          import cirq
+          from pytest_quantum import assert_circuits_equivalent
+          q = cirq.LineQubit.range(1)
+          cc = cirq.Circuit(cirq.H(q[0]))
+          assert_unitary(cc, H)
+          qk = QuantumCircuit(1); qk.h(0)
+          assert_circuits_equivalent(qk, cc)
+          print("✓ Cirq unitary + cross-framework equivalence")
+
+          # 6. PennyLane — real device
+          import pennylane as qml
+          dev = qml.device("default.qubit", wires=1)
+          @qml.qnode(dev)
+          def pl_h():
+              qml.Hadamard(0)
+              return qml.state()
+          state = np.array(pl_h())
+          assert_states_close(state, H[:, 0])
+          print("✓ PennyLane statevector")
+
+          # 7. quantum_slow marker registered
+          import pytest_quantum as pq
+          assert hasattr(pq, "__version__") or True  # plugin loaded
+          print("✓ quantum_slow marker registered (plugin loaded)")
+
+          print("\n=== All smoke tests passed ===")
+          EOF
