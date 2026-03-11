@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pytest_quantum.converters.to_unitary import to_unitary
+from pytest_quantum.converters.to_unitary import (
+    _is_cirq,
+    _is_pytket,
+    _is_qiskit,
+    to_unitary,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -46,8 +51,10 @@ def assert_unitary(
 
         HADAMARD = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
+
         def test_h_gate():
             from qiskit import QuantumCircuit
+
             qc = QuantumCircuit(1)
             qc.h(0)
             assert_unitary(qc, HADAMARD)
@@ -117,6 +124,7 @@ def assert_circuits_equivalent(
 
         from pytest_quantum import assert_circuits_equivalent
 
+
         def test_cnot_cross_framework():
             import cirq
             from qiskit import QuantumCircuit
@@ -136,9 +144,7 @@ def assert_circuits_equivalent(
     if type_a.startswith("qiskit") and type_b.startswith("qiskit"):
         result = _qcec_verify(circuit_a, circuit_b)
         if result == "not_equivalent":
-            raise AssertionError(
-                "Circuits are NOT equivalent (verified by mqt.qcec)."
-            )
+            raise AssertionError("Circuits are NOT equivalent (verified by mqt.qcec).")
         if result == "equivalent":
             return
         # result == "no_information" → fall through to numpy comparison
@@ -146,6 +152,18 @@ def assert_circuits_equivalent(
     # General path: convert both to unitary matrices
     u_a = to_unitary(circuit_a)
     u_b = to_unitary(circuit_b)
+
+    # Normalize qubit ordering for cross-framework comparison.
+    # Qiskit = little-endian, Cirq = big-endian, Pytket = big-endian.
+    big_endian_a = _is_cirq(circuit_a) or _is_pytket(circuit_a)
+    big_endian_b = _is_cirq(circuit_b) or _is_pytket(circuit_b)
+
+    from pytest_quantum.converters.to_unitary import _reverse_qubit_order
+
+    if _is_qiskit(circuit_a) and big_endian_b:
+        u_a = _reverse_qubit_order(u_a)
+    elif big_endian_a and _is_qiskit(circuit_b):
+        u_b = _reverse_qubit_order(u_b)
 
     if u_a.shape != u_b.shape:
         raise AssertionError(
@@ -170,6 +188,65 @@ def assert_circuits_equivalent(
         f"Circuits are NOT equivalent.\n"
         f"  Max |U_a - U_b|: {max_diff:.2e}   (tolerance: {atol:.2e})"
     )
+
+
+def assert_transpilation_preserves_semantics(
+    circuit: object,
+    backend: object,
+    *,
+    optimization_level: int = 1,
+    atol: float = 1e-6,
+) -> None:
+    """Assert that transpiling a Qiskit circuit preserves its unitary.
+
+    Transpiles *circuit* for *backend* and verifies the resulting circuit
+    implements the same unitary (up to global phase).
+
+    Args:
+        circuit:            Qiskit QuantumCircuit (must be unitary, no
+                            measurements).
+        backend:            Qiskit backend or ``FakeBackend`` target.
+        optimization_level: Qiskit transpiler optimisation level 0-3
+                            (default 1).
+        atol:               Tolerance for unitary comparison (default 1e-6).
+
+    Raises:
+        AssertionError:      If transpiled circuit has different unitary.
+        NotImplementedError: For non-Qiskit circuits.
+        ImportError:         If qiskit is not installed.
+
+    Example::
+
+        from qiskit import QuantumCircuit
+        from qiskit.providers.fake_provider import GenericBackendV2
+        from pytest_quantum import assert_transpilation_preserves_semantics
+
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        backend = GenericBackendV2(num_qubits=2)
+        assert_transpilation_preserves_semantics(qc, backend)
+    """
+    module = type(circuit).__module__
+    if not module.startswith("qiskit"):
+        raise NotImplementedError(
+            f"assert_transpilation_preserves_semantics only supports Qiskit circuits; "
+            f"got {module!r}"
+        )
+    try:
+        from qiskit import transpile
+
+        original_U = to_unitary(circuit)
+        transpiled = transpile(
+            circuit,
+            backend=backend,
+            optimization_level=optimization_level,
+        )
+        assert_unitary(transpiled, original_U, atol=atol, allow_global_phase=True)
+    except ImportError as exc:
+        raise ImportError(
+            "qiskit is required: pip install pytest-quantum[qiskit]"
+        ) from exc
 
 
 # ---------------------------------------------------------------------------
