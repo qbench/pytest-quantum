@@ -37,7 +37,9 @@ class TestPennyLaneFixture:
         state = circuit()
         expected = np.array([1, 1]) / np.sqrt(2)
         assert state.shape == (2,)
-        assert math.isclose(float(abs(np.vdot(state, expected)) ** 2), 1.0, abs_tol=1e-6)
+        assert math.isclose(
+            float(abs(np.vdot(state, expected)) ** 2), 1.0, abs_tol=1e-6
+        )
 
     def test_fixture_bell_state(self, pennylane_device: object) -> None:
         import pennylane as qml
