@@ -26,6 +26,16 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
+def _reverse_qubit_order(U: NDArray[np.complex128]) -> NDArray[np.complex128]:
+    """Reverse qubit ordering convention (little-endian ↔ big-endian)."""
+    d = U.shape[0]
+    n = round(np.log2(d))
+    if 2**n != d:
+        raise ValueError(f"Matrix dimension {d} is not a power of 2")
+    perm = [int(format(i, f"0{n}b")[::-1], 2) for i in range(d)]
+    return U[np.ix_(perm, perm)]
+
+
 def _is_qiskit(circuit: object) -> bool:
     return type(circuit).__module__.startswith("qiskit")
 
@@ -41,6 +51,20 @@ def _is_braket(circuit: object) -> bool:
 def _is_pennylane(circuit: object) -> bool:
     mod = type(circuit).__module__
     return mod.startswith("pennylane") or hasattr(circuit, "device")
+
+
+def _is_pytket(circuit: object) -> bool:
+    return type(circuit).__module__.startswith("pytket")
+
+
+def _is_qutip(circuit: object) -> bool:
+    mod = type(circuit).__module__
+    return mod.startswith("qutip")
+
+
+def _is_tequila(circuit: object) -> bool:
+    mod = type(circuit).__module__
+    return mod.startswith("tequila")
 
 
 # ---------------------------------------------------------------------------
@@ -86,11 +110,18 @@ def to_unitary(circuit: object) -> NDArray[np.complex128]:
         return _from_braket(circuit)
     if _is_pennylane(circuit):
         return _from_pennylane(circuit)
+    if _is_pytket(circuit):
+        return _from_pytket(circuit)
+    if _is_qutip(circuit):
+        return _from_qutip(circuit)
+    if _is_tequila(circuit):
+        return _from_tequila(circuit)
 
     raise TypeError(
         f"Unrecognised circuit type: {type(circuit).__qualname__!r}.\n"
         "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
-        "braket.circuits.Circuit, pennylane QNode.\n"
+        "braket.circuits.Circuit, pennylane QNode, pytket Circuit, "
+        "qutip.Qobj, tequila QCircuit.\n"
         "For graphix patterns use assert_state_fidelity_above() instead."
     )
 
@@ -140,6 +171,65 @@ def _from_braket(circuit: object) -> NDArray[np.complex128]:
         ) from exc
 
     return np.asarray(result, dtype=np.complex128)
+
+
+def _from_pytket(circuit: object) -> NDArray[np.complex128]:
+    try:
+        import numpy as np  # already imported at top level, but keep for clarity
+
+        U = np.asarray(cast("Any", circuit).get_unitary())
+        # pytket uses ILO-BE (big-endian) like Cirq — no reversal needed vs Cirq,
+        # but qubit order reversal is handled in assert_circuits_equivalent when
+        # comparing against Qiskit (little-endian).
+        return U.astype(np.complex128)
+    except AttributeError as exc:
+        raise ImportError(
+            "pytket is required for Pytket circuit support. "
+            "Install it with: pip install pytket"
+        ) from exc
+    except ImportError as exc:
+        raise ImportError("pytket is required: pip install pytket") from exc
+
+
+def _from_qutip(circuit: object) -> NDArray[np.complex128]:
+    """Extract unitary from a QuTiP Qobj (must be unitary type)."""
+    try:
+        import qutip  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "qutip is required for QuTiP support. Install it with: pip install qutip"
+        ) from exc
+    obj = cast("Any", circuit)
+    # Qobj.full() returns numpy matrix; handle both operator and superoperator
+    if hasattr(obj, "full"):
+        U = np.asarray(obj.full(), dtype=np.complex128)
+        if U.ndim == 2 and U.shape[0] == U.shape[1]:
+            return U
+    raise TypeError(
+        f"QuTiP Qobj of type {obj.type!r} cannot be converted to a unitary matrix. "
+        "Pass a unitary operator Qobj (obj.type == 'oper')."
+    )
+
+
+def _from_tequila(circuit: object) -> NDArray[np.complex128]:
+    """Extract unitary from a Tequila QCircuit via column-by-column simulation."""
+    try:
+        import tequila as tq
+    except ImportError as exc:
+        raise ImportError(
+            "tequila is required for Tequila support. "
+            "Install it with: pip install tequila-basic"
+        ) from exc
+    c = cast("Any", circuit)
+    n_qubits = len(c.qubits)
+    dim = 2**n_qubits
+    U = np.zeros((dim, dim), dtype=np.complex128)
+    for i in range(dim):
+        basis_state = tq.QubitWaveFunction.from_int(i, n_qubits=n_qubits)
+        result = tq.simulate(c, initial_state=basis_state)
+        for key, val in result.items():
+            U[key.integer, i] = val
+    return U
 
 
 def _from_pennylane(circuit: object) -> NDArray[np.complex128]:
