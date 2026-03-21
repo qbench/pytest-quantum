@@ -12,6 +12,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: astral-sh/setup-uv@v5
+
+      - name: Verify tag matches pyproject.toml version
+        run: |
+          TAG="${{ github.ref_name }}"
+          TAG_VERSION="${TAG#v}"
+          FILE_VERSION=$(grep '^version = ' pyproject.toml | sed 's/version = "\(.*\)"/\1/')
+          if [[ "$TAG_VERSION" != "$FILE_VERSION" ]]; then
+            echo "❌ Version mismatch!"
+            echo "   Git tag     : $TAG_VERSION"
+            echo "   pyproject.toml: $FILE_VERSION"
+            echo "Use ./release.sh $TAG_VERSION to release correctly."
+            exit 1
+          fi
+          echo "✓ Tag $TAG matches pyproject.toml version $FILE_VERSION"
+
       - name: Build wheel + sdist
         run: uv build
       - uses: actions/upload-artifact@v4
