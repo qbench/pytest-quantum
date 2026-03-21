@@ -87,9 +87,26 @@ def assert_backend_executes(
             optimization_level=optimization_level,
         )
 
+    # IBM Runtime 0.20+ removed backend.run() — use SamplerV2 for IBM backends
+    try:
+        from qiskit_ibm_runtime import IBMBackend
+        from qiskit_ibm_runtime import SamplerV2 as IBMSampler
+
+        if isinstance(backend, IBMBackend):
+            sampler = IBMSampler(backend)
+            job = sampler.run([circuit], shots=shots)
+            print(
+                f"\n  [pytest-quantum] Job submitted to {backend_name}: {_job_id(job)}"
+            )
+            return _wait_for_sampler_job(
+                job, timeout=timeout, backend_name=backend_name
+            )
+    except ImportError:
+        pass
+
+    # Fallback: backend.run() for AerSimulator and other non-IBM backends
     job = backend.run(circuit, shots=shots)
     print(f"\n  [pytest-quantum] Job submitted to {backend_name}: {_job_id(job)}")
-
     return _wait_for_job(job, timeout=timeout, backend_name=backend_name)
 
 
@@ -224,17 +241,19 @@ def assert_mirror_fidelity(
     except ImportError as exc:
         raise ImportError("qiskit is required for mirror fidelity assertion.") from exc
 
-    # Transpile first so the inverse uses the same basis gates
-    transpiled = qk_transpile(circuit, backend, optimization_level=1)
-    mirror = transpiled.compose(transpiled.inverse())
+    # Compose circuit + inverse BEFORE transpiling so the full mirror is
+    # optimised together and only basis-gate instructions reach the backend.
+    mirror = circuit.compose(circuit.inverse())
     mirror.measure_all()
+    mirror = qk_transpile(mirror, backend, optimization_level=1)
 
     counts = assert_backend_executes(
         mirror, backend, shots=shots, timeout=timeout, transpile=False
     )
 
-    n_qubits = mirror.num_qubits
-    zero_state = "0" * n_qubits
+    # Use actual measured bit length (not total backend qubits) to build zero state
+    bit_len = len(next(iter(counts))) if counts else mirror.num_qubits
+    zero_state = "0" * bit_len
     zero_count = counts.get(zero_state, 0)
     fidelity = zero_count / shots
 
@@ -242,7 +261,7 @@ def assert_mirror_fidelity(
         top = dict(sorted(counts.items(), key=lambda x: -x[1])[:5])
         raise AssertionError(
             f"Mirror fidelity {fidelity:.4f} < {min_fidelity:.4f}.\n"
-            f"  |{'0' * n_qubits}⟩ outcomes : {zero_count} / {shots}\n"
+            f"  |{'0' * bit_len}⟩ outcomes : {zero_count} / {shots}\n"
             f"  Backend           : {_backend_name(backend)}\n"
             f"  Top outcomes      : {top}\n"
             f"  Hint: lower min_fidelity for noisy devices, or reduce circuit depth."
@@ -321,6 +340,9 @@ def assert_backend_calibration(
             for param in gate.parameters:
                 if param.name == "gate_error" and param.value is not None:
                     two_q_errors.append(float(param.value))
+
+    # Filter out gate_error = 1.0 — these are disabled/unused qubit links
+    two_q_errors = [e for e in two_q_errors if e < 1.0]
 
     if two_q_errors:
         worst_gate = max(two_q_errors)
@@ -469,6 +491,69 @@ def _wait_for_job(
     result = job.result()
     counts: dict[str, int] = result.get_counts()
     return counts
+
+
+def _wait_for_sampler_job(
+    job: Any,
+    *,
+    timeout: float = 300.0,
+    backend_name: str = "backend",
+) -> dict[str, int]:
+    """Poll an IBM SamplerV2 job until done and return counts."""
+    deadline = time.monotonic() + timeout
+    poll = 5.0
+
+    while True:
+        remaining = deadline - time.monotonic()
+        if remaining <= 0:
+            raise AssertionError(
+                f"Job {_job_id(job)} on {backend_name} timed out after {timeout:.0f}s.\n"
+                f"  Hint: increase timeout or check the IBM Quantum queue status."
+            )
+
+        # SamplerV2 status() returns a string: 'QUEUED', 'RUNNING', 'DONE', 'ERROR', etc.
+        status = job.status()
+        status_str = (
+            status if isinstance(status, str) else getattr(status, "name", str(status))
+        )
+
+        if status_str in ("DONE", "COMPLETED"):
+            break
+        if status_str in ("ERROR", "FAILED", "CANCELLED"):
+            raise AssertionError(
+                f"Job {_job_id(job)} on {backend_name} ended with status {status_str}.\n"
+                f"  Hint: check the IBM Quantum dashboard for error details."
+            )
+
+        print(
+            f"  [pytest-quantum] {_job_id(job)}: {status_str}"
+            f" ({remaining:.0f}s remaining) …"
+        )
+        time.sleep(min(poll, remaining))
+        poll = min(poll * 1.5, 30.0)
+
+    result = job.result()
+    return _extract_counts(result[0])
+
+
+def _extract_counts(pub_result: Any) -> dict[str, int]:
+    """Extract counts from a SamplerV2 PubResult regardless of register name."""
+    data = pub_result.data
+    # DataBin fields vary by circuit — try common names first, then scan all
+    for name in ("meas", "c", "c0", "cr", "measure"):
+        bit_array = getattr(data, name, None)
+        if bit_array is not None and hasattr(bit_array, "get_counts"):
+            counts: dict[str, int] = bit_array.get_counts()
+            return counts
+    # Scan all fields dynamically
+    for name in getattr(data, "__dataclass_fields__", {}):
+        bit_array = getattr(data, name, None)
+        if bit_array is not None and hasattr(bit_array, "get_counts"):
+            counts = bit_array.get_counts()
+            return counts
+    raise AssertionError(
+        "Could not extract counts from job result. Ensure the circuit has measurements."
+    )
 
 
 def _job_id(job: object) -> str:

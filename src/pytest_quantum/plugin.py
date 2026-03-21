@@ -844,8 +844,10 @@ def ibm_backend(request: pytest.FixtureRequest) -> Any:
     token = os.environ.get("IBM_QUANTUM_TOKEN", "")
     instance = os.environ.get("IBM_QUANTUM_INSTANCE", "ibm-q/open/main")
     backend_name = os.environ.get("IBM_QUANTUM_BACKEND", "")
-    # ibm_quantum = legacy channel (free tier); ibm_cloud = IBM Cloud accounts
-    channel = os.environ.get("IBM_QUANTUM_CHANNEL", "ibm_quantum")
+    # Valid channels in qiskit-ibm-runtime >= 0.20:
+    #   ibm_quantum_platform  — token from quantum.ibm.com (recommended)
+    #   ibm_cloud             — IBM Cloud API key + CRN instance
+    channel = os.environ.get("IBM_QUANTUM_CHANNEL", "ibm_quantum_platform")
     min_qubits = int(os.environ.get("IBM_QUANTUM_MIN_QUBITS", "5"))
 
     if not token:
@@ -860,23 +862,24 @@ def ibm_backend(request: pytest.FixtureRequest) -> Any:
     except ImportError:
         pytest.skip("qiskit-ibm-runtime not installed: pip install qiskit-ibm-runtime")
 
-    # Try the requested channel; fall back to the other one automatically
-    channels_to_try = [
-        channel,
-        "ibm_cloud" if channel == "ibm_quantum" else "ibm_quantum",
-    ]
+    # Try all known valid channel names in order
+    channels_to_try = list(
+        dict.fromkeys([channel, "ibm_quantum_platform", "ibm_cloud"])
+    )
     service = None
+    last_error = ""
     for ch in channels_to_try:
         try:
             service = QiskitRuntimeService(channel=ch, token=token, instance=instance)
             break
-        except Exception:
+        except Exception as exc:
+            last_error = str(exc)
             continue
 
     if service is None:
         pytest.skip(
-            "IBM Quantum connection failed on both ibm_quantum and ibm_cloud channels.\n"
-            "  Check that IBM_QUANTUM_TOKEN is valid and IBM_QUANTUM_INSTANCE is correct."
+            f"IBM Quantum connection failed: {last_error}\n"
+            "  Check IBM_QUANTUM_TOKEN is valid (get it from quantum.ibm.com)."
         )
 
     try:
