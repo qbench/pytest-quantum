@@ -34,4 +34,4 @@ jobs:
           name: dist
           path: dist/
       - name: Publish
-        run: uv publish
+        uses: pypa/gh-action-pypi-publish@release/v1
