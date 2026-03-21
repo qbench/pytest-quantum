@@ -46,8 +46,10 @@ def assert_unitary(
 
         HADAMARD = np.array([[1, 1], [1, -1]]) / np.sqrt(2)
 
+
         def test_h_gate():
             from qiskit import QuantumCircuit
+
             qc = QuantumCircuit(1)
             qc.h(0)
             assert_unitary(qc, HADAMARD)
@@ -117,6 +119,7 @@ def assert_circuits_equivalent(
 
         from pytest_quantum import assert_circuits_equivalent
 
+
         def test_cnot_cross_framework():
             import cirq
             from qiskit import QuantumCircuit
@@ -136,9 +139,7 @@ def assert_circuits_equivalent(
     if type_a.startswith("qiskit") and type_b.startswith("qiskit"):
         result = _qcec_verify(circuit_a, circuit_b)
         if result == "not_equivalent":
-            raise AssertionError(
-                "Circuits are NOT equivalent (verified by mqt.qcec)."
-            )
+            raise AssertionError("Circuits are NOT equivalent (verified by mqt.qcec).")
         if result == "equivalent":
             return
         # result == "no_information" → fall through to numpy comparison

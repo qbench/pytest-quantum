@@ -54,7 +54,9 @@ def assert_measurement_distribution(
             from pytest_quantum import assert_measurement_distribution
 
             qc = QuantumCircuit(2)
-            qc.h(0); qc.cx(0, 1); qc.measure_all()
+            qc.h(0)
+            qc.cx(0, 1)
+            qc.measure_all()
             qc_t = transpile(qc, aer_simulator)
             counts = aer_simulator.run(qc_t, shots=2000).result().get_counts()
 
@@ -102,7 +104,9 @@ def assert_measurement_distribution(
             obs_p = counts.get(k, 0) / total_shots
             exp_p = expected_probs.get(k, 0.0)
             diff = obs_p - exp_p
-            rows.append(f"    {k:>12s}:  observed {obs_p:.4f}  expected {exp_p:.4f}  diff {diff:+.4f}")
+            rows.append(
+                f"    {k:>12s}:  observed {obs_p:.4f}  expected {exp_p:.4f}  diff {diff:+.4f}"
+            )
         table = "\n".join(rows)
         raise AssertionError(
             f"Measurement distribution mismatch (chi-square test failed).\n"
@@ -145,13 +149,18 @@ def assert_counts_close(
 
         def test_transpile_preserves_distribution(aer_simulator):
             from qiskit import QuantumCircuit, transpile
+
             qc = QuantumCircuit(2)
-            qc.h(0); qc.cx(0, 1); qc.measure_all()
+            qc.h(0)
+            qc.cx(0, 1)
+            qc.measure_all()
 
             # ideal vs noise-free transpiled
             qc_t = transpile(qc, aer_simulator, optimization_level=3)
-            counts_ideal     = aer_simulator.run(qc,   shots=2000).result().get_counts()
-            counts_transpiled = aer_simulator.run(qc_t, shots=2000).result().get_counts()
+            counts_ideal = aer_simulator.run(qc, shots=2000).result().get_counts()
+            counts_transpiled = (
+                aer_simulator.run(qc_t, shots=2000).result().get_counts()
+            )
             assert_counts_close(counts_ideal, counts_transpiled, max_tvd=0.05)
     """
     distance = tvd_from_counts(counts_a, counts_b)

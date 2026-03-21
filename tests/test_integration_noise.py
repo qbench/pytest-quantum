@@ -27,7 +27,9 @@ class TestAerNoiseSimulator:
         counts = sim.run(transpile(qc, sim), shots=1000).result().get_counts()
         assert sum(counts.values()) == 1000
 
-    def test_noisy_bell_dominant_outcomes_correct(self, aer_noise_simulator: object) -> None:
+    def test_noisy_bell_dominant_outcomes_correct(
+        self, aer_noise_simulator: object
+    ) -> None:
         """With small noise (1%), Bell state still produces mostly 00 and 11."""
         from qiskit import QuantumCircuit, transpile
 
@@ -43,7 +45,7 @@ class TestAerNoiseSimulator:
         # Dominant outcomes should still be 00 and 11 (combined >85% with 1% noise)
         dominant = counts.get("00", 0) + counts.get("11", 0)
         assert dominant / total > 0.85, (
-            f"Expected 00+11 to dominate with 1% noise, got {dominant/total:.2%}. "
+            f"Expected 00+11 to dominate with 1% noise, got {dominant / total:.2%}. "
             f"Full counts: {counts}"
         )
 
