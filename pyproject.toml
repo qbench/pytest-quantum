@@ -50,6 +50,7 @@ pytket   = ["pytket>=1.30"]
 stim     = ["stim>=1.13"]
 qutip    = ["qutip>=4.7"]
 tequila  = ["tequila-basic>=1.9"]
+mitiq    = ["mitiq>=0.38"]
 all = [
     "pytest-quantum[qiskit]",
     "pytest-quantum[cirq]",
@@ -60,6 +61,7 @@ all = [
     "pytest-quantum[pytket]",
     "pytest-quantum[stim]",
     "pytest-quantum[qutip]",
+    "pytest-quantum[mitiq]",
 ]
 
 [project.urls]

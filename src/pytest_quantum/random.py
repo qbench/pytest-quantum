@@ -103,7 +103,8 @@ def random_unitary(
     Q, R = np.linalg.qr(A)
     # Phase correction: multiply each column by the sign of the diagonal of R
     phases = np.diag(R) / np.abs(np.diag(R))
-    return (Q * phases).astype(np.complex128)
+    result: NDArray[np.complex128] = (Q * phases).astype(np.complex128)
+    return result
 
 
 def random_kraus_channel(

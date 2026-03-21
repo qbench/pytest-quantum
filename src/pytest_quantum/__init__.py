@@ -60,6 +60,19 @@ Public API — import anything you need directly from ``pytest_quantum``::
         assert_stim_logical_error_rate_below,
         assert_stim_detector_error_rate_below,
         assert_stabilizer_state,
+        # Sweeps (v0.4.0)
+        assert_circuit_sweep,
+        assert_circuit_sweep_states,
+        assert_parametrized_unitary_continuous,
+        # Compilation (v0.4.0)
+        assert_transpilation_equivalent,
+        assert_transpilation_depth_below,
+        assert_gate_count_after_transpilation,
+        # Mitiq error mitigation (v0.4.0)
+        assert_zne_expectation_close,
+        assert_zne_reduces_error,
+        assert_cdr_reduces_error,
+        assert_mitigation_improves_fidelity,
         # Random generators (v0.3.0)
         random_statevector,
         random_density_matrix,
@@ -99,6 +112,9 @@ pytest.register_assert_rewrite("pytest_quantum.assertions.entanglement")
 pytest.register_assert_rewrite("pytest_quantum.assertions.information")
 pytest.register_assert_rewrite("pytest_quantum.assertions.qasm")
 pytest.register_assert_rewrite("pytest_quantum.assertions.stim_assertions")
+pytest.register_assert_rewrite("pytest_quantum.assertions.sweeps")
+pytest.register_assert_rewrite("pytest_quantum.assertions.compilation")
+pytest.register_assert_rewrite("pytest_quantum.assertions.mitiq_assertions")
 
 from pytest_quantum.assertions.channels import (
     assert_channel_is_cptp,
@@ -107,6 +123,11 @@ from pytest_quantum.assertions.channels import (
     assert_noise_fidelity_above,
     assert_positive_semidefinite,
     assert_process_fidelity_above,
+)
+from pytest_quantum.assertions.compilation import (
+    assert_gate_count_after_transpilation,
+    assert_transpilation_depth_below,
+    assert_transpilation_equivalent,
 )
 from pytest_quantum.assertions.density import (
     assert_density_matrix_close,
@@ -127,6 +148,12 @@ from pytest_quantum.assertions.information import (
     assert_cross_entropy_below,
     assert_hellinger_close,
     assert_kl_divergence_below,
+)
+from pytest_quantum.assertions.mitiq_assertions import (
+    assert_cdr_reduces_error,
+    assert_mitigation_improves_fidelity,
+    assert_zne_expectation_close,
+    assert_zne_reduces_error,
 )
 from pytest_quantum.assertions.observables import (
     assert_cost_decreases,
@@ -161,6 +188,11 @@ from pytest_quantum.assertions.structure import (
     assert_gates_in_basis_set,
     assert_has_diagram,
 )
+from pytest_quantum.assertions.sweeps import (
+    assert_circuit_sweep,
+    assert_circuit_sweep_states,
+    assert_parametrized_unitary_continuous,
+)
 from pytest_quantum.assertions.unitary import (
     assert_circuits_equivalent,
     assert_transpilation_preserves_semantics,
@@ -181,13 +213,16 @@ from pytest_quantum.stats.tests import (
     tvd_from_counts,
 )
 
-__version__ = "0.3.0"
+__version__ = "0.4.0"
 
 __all__ = [
     "assert_bloch_sphere_close",
+    "assert_cdr_reduces_error",
     "assert_channel_is_cptp",
     "assert_circuit_depth",
     "assert_circuit_is_clifford",
+    "assert_circuit_sweep",
+    "assert_circuit_sweep_states",
     "assert_circuit_width",
     "assert_circuits_equivalent",
     "assert_commutes_with",
@@ -200,6 +235,7 @@ __all__ = [
     "assert_estimator_close",
     "assert_expectation_value_close",
     "assert_gate_count",
+    "assert_gate_count_after_transpilation",
     "assert_gates_in_basis_set",
     "assert_ground_state_energy_close",
     "assert_has_diagram",
@@ -207,8 +243,10 @@ __all__ = [
     "assert_hermitian",
     "assert_kl_divergence_below",
     "assert_measurement_distribution",
+    "assert_mitigation_improves_fidelity",
     "assert_noise_fidelity_above",
     "assert_normalized",
+    "assert_parametrized_unitary_continuous",
     "assert_partial_trace_close",
     "assert_positive_semidefinite",
     "assert_process_fidelity_above",
@@ -222,10 +260,14 @@ __all__ = [
     "assert_stim_detector_error_rate_below",
     "assert_stim_logical_error_rate_below",
     "assert_trace_distance_below",
+    "assert_transpilation_depth_below",
+    "assert_transpilation_equivalent",
     "assert_transpilation_preserves_semantics",
     "assert_unitary",
     "assert_unitary_snapshot",
     "assert_vqe_converges",
+    "assert_zne_expectation_close",
+    "assert_zne_reduces_error",
     "chi_square_test",
     "depolarizing_kraus",
     "fidelity",

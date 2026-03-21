@@ -23,7 +23,12 @@ Requires: pip install hypothesis
 
 from __future__ import annotations
 
+from typing import TYPE_CHECKING
+
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 try:
     from hypothesis import strategies as st
@@ -50,7 +55,7 @@ def _require_hypothesis() -> None:
         )
 
 
-def statevectors(n_qubits: int = 1) -> st.SearchStrategy[np.ndarray]:
+def statevectors(n_qubits: int = 1) -> st.SearchStrategy[NDArray[np.complex128]]:
     """Strategy generating random normalized statevectors of shape (2^n_qubits,).
 
     All generated statevectors satisfy ||psi||_2 = 1.
@@ -76,7 +81,7 @@ def statevectors(n_qubits: int = 1) -> st.SearchStrategy[np.ndarray]:
     dim = 2**n_qubits
 
     @st.composite
-    def _strategy(draw: st.DrawFn) -> np.ndarray:
+    def _strategy(draw: st.DrawFn) -> NDArray[np.complex128]:
         floats = st.floats(
             min_value=-1.0, max_value=1.0, allow_nan=False, allow_infinity=False
         )
@@ -95,7 +100,7 @@ def statevectors(n_qubits: int = 1) -> st.SearchStrategy[np.ndarray]:
 
 def density_matrices(
     n_qubits: int = 1, rank: int | None = None
-) -> st.SearchStrategy[np.ndarray]:
+) -> st.SearchStrategy[NDArray[np.complex128]]:
     """Strategy generating random valid density matrices of shape (2^n, 2^n).
 
     All generated matrices are:
@@ -117,14 +122,14 @@ def density_matrices(
     r = rank if rank is not None else dim
 
     @st.composite
-    def _strategy(draw: st.DrawFn) -> np.ndarray:
+    def _strategy(draw: st.DrawFn) -> NDArray[np.complex128]:
         seed = draw(st.integers(min_value=0, max_value=2**31 - 1))
         return random_density_matrix(n_qubits, rank=r, seed=seed)
 
     return _strategy()
 
 
-def unitary_matrices(n_qubits: int = 1) -> st.SearchStrategy[np.ndarray]:
+def unitary_matrices(n_qubits: int = 1) -> st.SearchStrategy[NDArray[np.complex128]]:
     """Strategy generating random Haar-random unitary matrices of shape (2^n, 2^n).
 
     All generated matrices satisfy U†U = I.
@@ -139,7 +144,7 @@ def unitary_matrices(n_qubits: int = 1) -> st.SearchStrategy[np.ndarray]:
     from pytest_quantum.random import random_unitary
 
     @st.composite
-    def _strategy(draw: st.DrawFn) -> np.ndarray:
+    def _strategy(draw: st.DrawFn) -> NDArray[np.complex128]:
         seed = draw(st.integers(min_value=0, max_value=2**31 - 1))
         return random_unitary(n_qubits, seed=seed)
 
@@ -185,7 +190,7 @@ def count_distributions(
 
 def kraus_channels(
     n_qubits: int = 1, n_kraus: int = 4
-) -> st.SearchStrategy[list[np.ndarray]]:
+) -> st.SearchStrategy[list[NDArray[np.complex128]]]:
     """Strategy generating valid CPTP Kraus operator sets.
 
     All generated Kraus operator sets satisfy the completeness relation:
@@ -202,7 +207,7 @@ def kraus_channels(
     from pytest_quantum.random import random_kraus_channel
 
     @st.composite
-    def _strategy(draw: st.DrawFn) -> list[np.ndarray]:
+    def _strategy(draw: st.DrawFn) -> list[NDArray[np.complex128]]:
         seed = draw(st.integers(min_value=0, max_value=2**31 - 1))
         return random_kraus_channel(n_qubits, n_kraus=n_kraus, seed=seed)
 

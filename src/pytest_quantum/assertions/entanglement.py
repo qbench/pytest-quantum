@@ -45,7 +45,9 @@ def assert_entanglement_entropy_below(
             f"Statevector length {len(sv)} is not a power of 2 "
             f"(expected 2^{n} = {2**n})."
         )
-    rho: NDArray[np.complex128] = np.outer(sv, sv.conj())
+    rho: NDArray[np.complex128] = np.asarray(
+        np.outer(sv, sv.conj()), dtype=np.complex128
+    )
     rho_a = _partial_trace(rho, n, list(partition))
     eigenvalues = np.linalg.eigvalsh(rho_a)
     # Keep only positive eigenvalues to avoid log(0)

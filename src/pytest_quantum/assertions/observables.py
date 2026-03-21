@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
-from typing import Any
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 __all__ = [
     "assert_cost_decreases",
@@ -142,7 +145,7 @@ def assert_vqe_converges(
     params0 = np.asarray(initial_params, dtype=float)
     history: list[float] = []
 
-    def _tracked(p: np.ndarray) -> float:
+    def _tracked(p: NDArray[np.float64]) -> float:
         val = float(np.real(cost_function(p)))
         history.append(val)
         return val

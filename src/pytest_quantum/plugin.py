@@ -8,6 +8,7 @@ all framework fixtures.
 from __future__ import annotations
 
 import importlib.util
+import os
 from typing import TYPE_CHECKING, Any
 
 import numpy as np
@@ -103,8 +104,6 @@ def pytest_configure(config: Config) -> None:
     # needing access to the pytest config object.
     try:
         if config.getoption("--quantum-update-snapshots", default=False):
-            import os
-
             os.environ["PYTEST_QUANTUM_UPDATE_SNAPSHOTS"] = "1"
     except (ValueError, AttributeError):
         # getoption raises ValueError if the option is not registered yet
@@ -813,55 +812,60 @@ def quantum_backend(
 
 @pytest.fixture(scope="session")
 def ibm_backend(request: pytest.FixtureRequest) -> Any:
-    """IBM Quantum real hardware backend (session-scoped).
+    """Real IBM Quantum backend via QiskitRuntimeService.
 
-    Auto-skips unless ``--quantum-real`` is passed.
-    Requires either:
+    Requires:
+        - --quantum-real CLI flag
+        - IBM_QUANTUM_TOKEN environment variable (or ~/.qiskit/qiskit-ibm.json)
+        - Optional: IBM_QUANTUM_INSTANCE env var (e.g. "ibm-q/open/main")
+        - Optional: IBM_QUANTUM_BACKEND env var (e.g. "ibm_brisbane") -- defaults to least_busy
 
-    - ``IBM_QUANTUM_TOKEN`` environment variable, OR
-    - A saved account via ``QiskitRuntimeService.save_account(token=...)``
-
-    Usage::
+    Example::
 
         @pytest.mark.quantum_real
-        def test_h_on_hardware(ibm_backend):
-            from qiskit import QuantumCircuit, transpile
+        def test_on_real_hardware(ibm_backend):
+            from qiskit import QuantumCircuit
+            from qiskit_ibm_runtime import SamplerV2 as Sampler
+            from pytest_quantum import assert_measurement_distribution
 
-            qc = QuantumCircuit(1)
+            qc = QuantumCircuit(1, 1)
             qc.h(0)
-            qc.measure_all()
-            transpiled = transpile(qc, ibm_backend)
-            job = ibm_backend.run(transpiled, shots=1024)
-            counts = job.result().get_counts()
+            qc.measure(0, 0)
+
+            sampler = Sampler(ibm_backend)
+            job = sampler.run([qc], shots=1024)
+            result = job.result()[0]
+            counts = dict(result.data.c.get_counts())
             assert_measurement_distribution(counts, {"0": 0.5, "1": 0.5})
     """
     if not request.config.getoption("--quantum-real", default=False):
-        pytest.skip(
-            "IBM Quantum hardware test skipped. Pass --quantum-real to enable.\n"
-            "Also requires IBM_QUANTUM_TOKEN env var or saved QiskitRuntimeService account."
-        )
+        pytest.skip("--quantum-real not set")
 
-    import os
+    token = os.environ.get("IBM_QUANTUM_TOKEN", "")
+    instance = os.environ.get("IBM_QUANTUM_INSTANCE", "ibm-q/open/main")
+    backend_name = os.environ.get("IBM_QUANTUM_BACKEND", "")
 
-    _require("qiskit_ibm_runtime", "pip install qiskit-ibm-runtime")
+    if not token:
+        pytest.skip("IBM_QUANTUM_TOKEN environment variable not set")
 
     try:
         from qiskit_ibm_runtime import QiskitRuntimeService
 
-        token = os.environ.get("IBM_QUANTUM_TOKEN")
-        if token:
-            service = QiskitRuntimeService(channel="ibm_quantum", token=token)
-        else:
-            service = QiskitRuntimeService(channel="ibm_quantum")
-
-        backend = service.least_busy(
-            min_num_qubits=5,
-            operational=True,
-            simulator=False,
+        service = QiskitRuntimeService(
+            channel="ibm_quantum", token=token, instance=instance
         )
+        if backend_name:
+            backend = service.backend(backend_name)
+        else:
+            # Pick least-busy backend with >= 5 qubits
+            backend = service.least_busy(
+                min_num_qubits=5, simulator=False, operational=True
+            )
         return backend
+    except ImportError:
+        pytest.skip("qiskit-ibm-runtime not installed: pip install qiskit-ibm-runtime")
     except Exception as exc:
-        pytest.skip(f"IBM Quantum backend unavailable: {exc}")
+        pytest.skip(f"IBM Quantum connection failed: {exc}")
 
 
 @pytest.fixture(scope="session")
@@ -891,8 +895,6 @@ def braket_cloud_device(request: pytest.FixtureRequest) -> Any:
             "AWS Braket cloud test skipped. Pass --quantum-real to enable.\n"
             "Also requires AWS credentials and BRAKET_DEVICE_ARN env var."
         )
-
-    import os
 
     device_arn = os.environ.get("BRAKET_DEVICE_ARN")
     if not device_arn:
