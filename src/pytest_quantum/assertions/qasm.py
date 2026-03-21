@@ -35,8 +35,8 @@ def assert_qasm_roundtrip(
             from pytest_quantum.converters.to_unitary import to_unitary
 
             original_U = to_unitary(circuit)
-            qasm_str = qasm3.dumps(circuit)  # type: ignore[attr-defined]
-            reimported = qasm3.loads(qasm_str)  # type: ignore[attr-defined]
+            qasm_str = qasm3.dumps(circuit)
+            reimported = qasm3.loads(qasm_str)
         except ImportError as exc:
             raise ImportError(
                 "qiskit-qasm3-import is required for QASM round-trip: "
@@ -52,7 +52,7 @@ def assert_qasm_roundtrip(
             original_U = to_unitary(circuit)
             # Use Cirq's native JSON serialisation for a true identity round-trip.
             # cirq.contrib.qasm_import is not available in modern Cirq.
-            json_str = cirq.to_json(circuit)  # type: ignore[arg-type]
+            json_str = cirq.to_json(circuit)
             reimported = cirq.read_json(json_text=json_str)
         except ImportError as exc:
             raise ImportError(

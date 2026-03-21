@@ -441,15 +441,15 @@ def assert_circuit_is_clifford(circuit: object) -> None:
         return
 
     if module.startswith("cirq"):
-        non_clifford = set()
+        non_clifford_cirq: set[str] = set()
         for moment in c:
             for op in moment.operations:
                 name = str(op.gate).lower()
                 if name not in _CLIFFORD_CIRQ:
-                    non_clifford.add(str(op.gate))
-        if non_clifford:
+                    non_clifford_cirq.add(str(op.gate))
+        if non_clifford_cirq:
             raise AssertionError(
-                f"Circuit contains non-Clifford gates: {sorted(non_clifford)}"
+                f"Circuit contains non-Clifford gates: {sorted(non_clifford_cirq)}"
             )
         return
 
@@ -493,7 +493,7 @@ def assert_circuit_is_clifford(circuit: object) -> None:
 
     if module.startswith("pytket"):
         try:
-            from pytket.tableau import UnitaryTableau  # type: ignore[import-untyped]
+            from pytket.tableau import UnitaryTableau
 
             UnitaryTableau(c)  # raises if circuit contains non-Clifford gates
         except ImportError as exc:

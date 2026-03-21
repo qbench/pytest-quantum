@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+from typing import Any, cast
 
 import numpy as np
 
@@ -150,10 +151,10 @@ def _write_snapshot_safe(path: Path, data: object) -> None:
 
         lock = filelock.FileLock(str(lock_path), timeout=10)
         with lock:
-            np.save(str(path), data)
+            np.save(str(path), cast(Any, data))
     except ImportError:
         # filelock not installed — just write directly (acceptable for single-worker)
-        np.save(str(path), data)
+        np.save(str(path), cast(Any, data))
 
 
 def _path(name: str, suffix: str) -> Path:

@@ -35,7 +35,8 @@ def random_statevector(
     rng = np.random.default_rng(seed)
     dim = 2**n_qubits
     sv = rng.standard_normal(dim) + 1j * rng.standard_normal(dim)
-    return (sv / np.linalg.norm(sv)).astype(np.complex128)
+    result: NDArray[np.complex128] = (sv / np.linalg.norm(sv)).astype(np.complex128)
+    return result
 
 
 def random_density_matrix(
@@ -67,7 +68,8 @@ def random_density_matrix(
     r = rank if rank is not None else dim
     A = rng.standard_normal((dim, r)) + 1j * rng.standard_normal((dim, r))
     rho = A @ A.conj().T
-    return (rho / np.trace(rho)).astype(np.complex128)
+    rho_n: NDArray[np.complex128] = (rho / np.trace(rho)).astype(np.complex128)
+    return rho_n
 
 
 def random_unitary(

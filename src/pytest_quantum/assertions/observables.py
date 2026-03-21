@@ -253,7 +253,7 @@ def _extract_expectation_value(result: Any) -> float:
     if hasattr(result, "numpy"):
         return float(result.numpy())
     try:
-        return float(result)  # type: ignore[arg-type]
+        return float(result)
     except (TypeError, ValueError):
         pass
     raise TypeError(

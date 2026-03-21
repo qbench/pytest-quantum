@@ -238,7 +238,7 @@ def assert_transpilation_preserves_semantics(
 
         original_U = to_unitary(circuit)
         transpiled = transpile(
-            circuit,  # type: ignore[arg-type]
+            circuit,
             backend=backend,
             optimization_level=optimization_level,
         )

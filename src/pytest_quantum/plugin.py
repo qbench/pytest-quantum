@@ -180,8 +180,8 @@ def pytest_assertrepr_compare(
             try:
                 result_lines: list[str] = ["Quantum count distributions differ:"]
                 all_keys = sorted(set(left) | set(right))
-                total_l = sum(left.values()) or 1  # type: ignore[arg-type]
-                total_r = sum(right.values()) or 1  # type: ignore[arg-type]
+                total_l = sum(left.values()) or 1
+                total_r = sum(right.values()) or 1
                 result_lines.append(
                     f"  {'key':<10} {'left':>10} {'right':>10} {'diff':>10}"
                 )
@@ -189,14 +189,14 @@ def pytest_assertrepr_compare(
                 for k in all_keys:
                     l_count = left.get(k, 0)
                     r_count = right.get(k, 0)
-                    diff = l_count / total_l - r_count / total_r  # type: ignore[operator]
+                    diff = l_count / total_l - r_count / total_r
                     result_lines.append(
                         f"  {k:<10} {l_count / total_l:>10.4f} "
                         f"{r_count / total_r:>10.4f} {diff:>+10.4f}"
                     )
                 distance = tvd_from_counts(
-                    {k: int(v) for k, v in left.items()},  # type: ignore[union-attr]
-                    {k: int(v) for k, v in right.items()},  # type: ignore[union-attr]
+                    {k: int(v) for k, v in left.items()},
+                    {k: int(v) for k, v in right.items()},
                 )
                 result_lines.append(f"  TVD = {distance:.4f}")
                 return result_lines
@@ -593,7 +593,7 @@ def pytket_circuit_factory() -> Any:
             assert c.n_qubits == 1
     """
     _require("pytket", "pip install pytket")
-    from pytket.circuit import Circuit  # type: ignore[import-untyped]
+    from pytket.circuit import Circuit
 
     return Circuit
 
@@ -738,7 +738,7 @@ def shot_budget() -> Any:
 
 
 @pytest.fixture
-def quantum_backend_name(request: pytest.FixtureRequest) -> str:  # type: ignore[return]
+def quantum_backend_name(request: pytest.FixtureRequest) -> str:
     """Parametrized backend name from @pytest.mark.quantum_backends.
 
     Auto-skips if the backend's SDK is not installed.
