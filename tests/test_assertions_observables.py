@@ -148,3 +148,71 @@ class TestAssertGroundStateEnergyClose:
     def test_default_atol_is_permissive(self) -> None:
         # Default atol=0.1 — small deviations accepted
         assert_ground_state_energy_close(-1.80, expected_energy=-1.8572)
+
+
+class TestVqeConverges:
+    def test_simple_minimum_found(self) -> None:
+
+        from pytest_quantum import assert_vqe_converges
+
+        # f(x) = (x - 2)^2, minimum at x=2, value=0
+        def cost(p: np.ndarray) -> float:
+            return float((p[0] - 2.0) ** 2)
+
+        assert_vqe_converges(cost, [0.0], expected_minimum=0.0, atol=0.01)
+
+    def test_energy_decreases(self) -> None:
+        import numpy as np
+
+        from pytest_quantum import assert_vqe_converges
+
+        def cost(p: np.ndarray) -> float:
+            return float(np.sin(p[0]) + 1.0)
+
+        assert_vqe_converges(cost, [2.0])  # no expected_minimum, just checks decrease
+
+    def test_non_converging_raises(self) -> None:
+        from pytest_quantum import assert_vqe_converges
+
+        # Flat cost function — no decrease
+        def flat_cost(p: object) -> float:
+            return 5.0
+
+        with pytest.raises(AssertionError, match="did not converge"):
+            assert_vqe_converges(flat_cost, [0.0], max_iterations=10)
+
+    def test_wrong_minimum_raises(self) -> None:
+        from pytest_quantum import assert_vqe_converges
+
+        def cost(p: object) -> float:
+            import numpy as np
+
+            return float((np.asarray(p)[0] - 2.0) ** 2)
+
+        with pytest.raises(AssertionError, match="missed expected minimum"):
+            assert_vqe_converges(cost, [0.0], expected_minimum=-5.0, atol=0.01)
+
+
+class TestCostDecreases:
+    def test_decreasing_history_passes(self) -> None:
+        from pytest_quantum import assert_cost_decreases
+
+        assert_cost_decreases([10.0, 7.0, 4.0, 1.0])
+
+    def test_flat_history_fails(self) -> None:
+        from pytest_quantum import assert_cost_decreases
+
+        with pytest.raises(AssertionError, match="did not decrease"):
+            assert_cost_decreases([5.0, 5.0, 5.0], min_decrease=0.1)
+
+    def test_min_decrease_enforced(self) -> None:
+        from pytest_quantum import assert_cost_decreases
+
+        with pytest.raises(AssertionError):
+            assert_cost_decreases([5.0, 4.9], min_decrease=1.0)
+
+    def test_too_few_entries_raises(self) -> None:
+        from pytest_quantum import assert_cost_decreases
+
+        with pytest.raises(ValueError, match="at least 2"):
+            assert_cost_decreases([5.0])

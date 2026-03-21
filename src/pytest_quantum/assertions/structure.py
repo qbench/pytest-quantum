@@ -7,7 +7,7 @@ compiler output or ensuring a circuit meets hardware constraints.
 
 from __future__ import annotations
 
-from typing import Any
+from typing import Any, cast
 
 # ---------------------------------------------------------------------------
 # Clifford gate sets per framework
@@ -324,6 +324,85 @@ def _get_width(circuit: object) -> int:
         f"{type(circuit).__qualname__!r}.\n"
         "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane."
     )
+
+
+def assert_gates_in_basis_set(
+    circuit: object,
+    basis_gates: set[str],
+    *,
+    case_sensitive: bool = False,
+) -> None:
+    """Assert every gate in the circuit belongs to the specified basis gate set.
+
+    Useful for verifying that a transpiled circuit only uses a target backend's
+    native gate set (e.g. after ``qiskit.transpile`` with ``basis_gates=[...]``).
+
+    Args:
+        circuit: Qiskit, Cirq, Braket, or Pytket circuit.
+        basis_gates: Set of allowed gate names.
+        case_sensitive: If False (default), comparison is case-insensitive.
+
+    Raises:
+        AssertionError: Lists every non-basis gate found.
+        NotImplementedError: For unsupported frameworks.
+
+    Example::
+
+        from qiskit import QuantumCircuit, transpile
+        from qiskit_aer import AerSimulator
+        from pytest_quantum import assert_gates_in_basis_set
+
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        transpiled = transpile(qc, basis_gates=["cx", "u3"])
+        assert_gates_in_basis_set(transpiled, {"cx", "u3"})
+    """
+    module = type(circuit).__module__
+    c = cast("Any", circuit)
+
+    basis = {g.lower() for g in basis_gates} if not case_sensitive else set(basis_gates)
+
+    def _normalise(name: str) -> str:
+        return name if case_sensitive else name.lower()
+
+    non_basis: list[str] = []
+
+    if module.startswith("qiskit"):
+        for instr in c.data:
+            gate_name = instr.operation.name
+            if _normalise(gate_name) not in basis:
+                non_basis.append(gate_name)
+    elif module.startswith("cirq"):
+        for moment in c:
+            for op in moment.operations:
+                gate_name = str(op.gate)
+                if _normalise(gate_name) not in basis:
+                    non_basis.append(gate_name)
+    elif module.startswith("braket"):
+        for instr in c.instructions:
+            gate_name = type(instr.operator).__name__
+            if _normalise(gate_name) not in basis:
+                non_basis.append(gate_name)
+    elif module.startswith("pytket"):
+        for cmd in c.get_commands():
+            gate_name = cmd.op.type.name
+            if _normalise(gate_name) not in basis:
+                non_basis.append(gate_name)
+    else:
+        raise NotImplementedError(
+            f"assert_gates_in_basis_set supports Qiskit, Cirq, Braket, Pytket; "
+            f"got {module!r}"
+        )
+
+    if non_basis:
+        unique = sorted(set(non_basis))
+        raise AssertionError(
+            f"Circuit contains {len(non_basis)} gate(s) not in basis set.\n"
+            f"  Non-basis gates found : {unique}\n"
+            f"  Allowed basis         : {sorted(basis_gates)}\n"
+            f"  Hint: use transpile(circuit, basis_gates=[...]) first."
+        )
 
 
 def assert_circuit_is_clifford(circuit: object) -> None:

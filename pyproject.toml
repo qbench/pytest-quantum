@@ -48,6 +48,8 @@ pennylane = ["pennylane>=0.38"]
 qcec     = ["mqt.qcec>=2.0"]
 pytket   = ["pytket>=1.30"]
 stim     = ["stim>=1.13"]
+qutip    = ["qutip>=4.7"]
+tequila  = ["tequila-basic>=1.9"]
 all = [
     "pytest-quantum[qiskit]",
     "pytest-quantum[cirq]",
@@ -57,6 +59,7 @@ all = [
     "pytest-quantum[qcec]",
     "pytest-quantum[pytket]",
     "pytest-quantum[stim]",
+    "pytest-quantum[qutip]",
 ]
 
 [project.urls]
@@ -91,6 +94,8 @@ dev = [
     "mqt.qcec>=2.0",
     "pytket>=1.30",
     "stim>=1.13",
+    "hypothesis>=6.0",
+    "filelock>=3.0",  # for pytest-xdist snapshot safety
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -102,6 +107,8 @@ packages = ["src/pytest_quantum"]
 [tool.pytest.ini_options]
 addopts   = ["-p", "pytester", "--strict-markers", "-ra"]
 testpaths = ["tests"]
+# pytest-xdist: session-scoped fixtures are safe (each worker gets its own simulator)
+# Snapshot tests require --dist=no or filelock installed for concurrent writes
 
 # ---------------------------------------------------------------------------
 # ruff — linter + formatter (replaces black + isort + flake8)

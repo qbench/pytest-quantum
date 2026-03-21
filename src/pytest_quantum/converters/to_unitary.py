@@ -57,6 +57,16 @@ def _is_pytket(circuit: object) -> bool:
     return type(circuit).__module__.startswith("pytket")
 
 
+def _is_qutip(circuit: object) -> bool:
+    mod = type(circuit).__module__
+    return mod.startswith("qutip")
+
+
+def _is_tequila(circuit: object) -> bool:
+    mod = type(circuit).__module__
+    return mod.startswith("tequila")
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -102,11 +112,16 @@ def to_unitary(circuit: object) -> NDArray[np.complex128]:
         return _from_pennylane(circuit)
     if _is_pytket(circuit):
         return _from_pytket(circuit)
+    if _is_qutip(circuit):
+        return _from_qutip(circuit)
+    if _is_tequila(circuit):
+        return _from_tequila(circuit)
 
     raise TypeError(
         f"Unrecognised circuit type: {type(circuit).__qualname__!r}.\n"
         "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
-        "braket.circuits.Circuit, pennylane QNode, pytket Circuit.\n"
+        "braket.circuits.Circuit, pennylane QNode, pytket Circuit, "
+        "qutip.Qobj, tequila QCircuit.\n"
         "For graphix patterns use assert_state_fidelity_above() instead."
     )
 
@@ -174,6 +189,47 @@ def _from_pytket(circuit: object) -> NDArray[np.complex128]:
         ) from exc
     except ImportError as exc:
         raise ImportError("pytket is required: pip install pytket") from exc
+
+
+def _from_qutip(circuit: object) -> NDArray[np.complex128]:
+    """Extract unitary from a QuTiP Qobj (must be unitary type)."""
+    try:
+        import qutip  # noqa: F401
+    except ImportError as exc:
+        raise ImportError(
+            "qutip is required for QuTiP support. Install it with: pip install qutip"
+        ) from exc
+    obj = cast("Any", circuit)
+    # Qobj.full() returns numpy matrix; handle both operator and superoperator
+    if hasattr(obj, "full"):
+        U = np.asarray(obj.full(), dtype=np.complex128)
+        if U.ndim == 2 and U.shape[0] == U.shape[1]:
+            return U
+    raise TypeError(
+        f"QuTiP Qobj of type {obj.type!r} cannot be converted to a unitary matrix. "
+        "Pass a unitary operator Qobj (obj.type == 'oper')."
+    )
+
+
+def _from_tequila(circuit: object) -> NDArray[np.complex128]:
+    """Extract unitary from a Tequila QCircuit via column-by-column simulation."""
+    try:
+        import tequila as tq
+    except ImportError as exc:
+        raise ImportError(
+            "tequila is required for Tequila support. "
+            "Install it with: pip install tequila-basic"
+        ) from exc
+    c = cast("Any", circuit)
+    n_qubits = len(c.qubits)
+    dim = 2**n_qubits
+    U = np.zeros((dim, dim), dtype=np.complex128)
+    for i in range(dim):
+        basis_state = tq.QubitWaveFunction.from_int(i, n_qubits=n_qubits)
+        result = tq.simulate(c, initial_state=basis_state)
+        for key, val in result.items():
+            U[key.integer, i] = val
+    return U
 
 
 def _from_pennylane(circuit: object) -> NDArray[np.complex128]:

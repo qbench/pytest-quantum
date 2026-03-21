@@ -18,6 +18,9 @@ Public API — import anything you need directly from ``pytest_quantum``::
         # Observables / expectation values (v0.2.0)
         assert_expectation_value_close,
         assert_ground_state_energy_close,
+        # VQE / variational optimization (v0.3.0)
+        assert_vqe_converges,
+        assert_cost_decreases,
         # Distributions
         assert_measurement_distribution,
         assert_counts_close,
@@ -28,6 +31,7 @@ Public API — import anything you need directly from ``pytest_quantum``::
         assert_circuit_depth,
         assert_circuit_width,
         assert_gate_count,
+        assert_gates_in_basis_set,
         assert_circuit_is_clifford,
         assert_has_diagram,
         # Snapshots (v0.2.0)
@@ -125,8 +129,10 @@ from pytest_quantum.assertions.information import (
     assert_kl_divergence_below,
 )
 from pytest_quantum.assertions.observables import (
+    assert_cost_decreases,
     assert_expectation_value_close,
     assert_ground_state_energy_close,
+    assert_vqe_converges,
 )
 from pytest_quantum.assertions.primitives import (
     assert_estimator_close,
@@ -152,6 +158,7 @@ from pytest_quantum.assertions.structure import (
     assert_circuit_is_clifford,
     assert_circuit_width,
     assert_gate_count,
+    assert_gates_in_basis_set,
     assert_has_diagram,
 )
 from pytest_quantum.assertions.unitary import (
@@ -184,6 +191,7 @@ __all__ = [
     "assert_circuit_width",
     "assert_circuits_equivalent",
     "assert_commutes_with",
+    "assert_cost_decreases",
     "assert_counts_close",
     "assert_cross_entropy_below",
     "assert_density_matrix_close",
@@ -192,6 +200,7 @@ __all__ = [
     "assert_estimator_close",
     "assert_expectation_value_close",
     "assert_gate_count",
+    "assert_gates_in_basis_set",
     "assert_ground_state_energy_close",
     "assert_has_diagram",
     "assert_hellinger_close",
@@ -216,6 +225,7 @@ __all__ = [
     "assert_transpilation_preserves_semantics",
     "assert_unitary",
     "assert_unitary_snapshot",
+    "assert_vqe_converges",
     "chi_square_test",
     "depolarizing_kraus",
     "fidelity",

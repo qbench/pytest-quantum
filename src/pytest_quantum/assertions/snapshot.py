@@ -50,8 +50,7 @@ def assert_unitary_snapshot(
     path = _path(name, ".npy")
     actual = to_unitary(circuit)
     if _update or not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
-        np.save(str(path), actual)
+        _write_snapshot_safe(path, actual)
         return
     expected = np.load(str(path))
     if actual.shape != expected.shape:
@@ -116,10 +115,9 @@ def assert_distribution_snapshot(
         raise ValueError("counts dict is empty — nothing to snapshot")
     probs = {k: v / total for k, v in counts.items()}
     if _update or not path.exists():
-        path.parent.mkdir(parents=True, exist_ok=True)
         keys = np.array(list(probs.keys()))
         vals = np.array(list(probs.values()), dtype=np.float64)
-        np.save(str(path), np.array([keys, vals], dtype=object))
+        _write_snapshot_safe(path, np.array([keys, vals], dtype=object))
         return
     raw = np.load(str(path), allow_pickle=True)
     snap_keys = list(raw[0])
@@ -141,6 +139,21 @@ def assert_distribution_snapshot(
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
+
+
+def _write_snapshot_safe(path: Path, data: object) -> None:
+    """Write snapshot file with advisory file lock for xdist safety."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    lock_path = path.with_suffix(".lock")
+    try:
+        import filelock
+
+        lock = filelock.FileLock(str(lock_path), timeout=10)
+        with lock:
+            np.save(str(path), data)
+    except ImportError:
+        # filelock not installed — just write directly (acceptable for single-worker)
+        np.save(str(path), data)
 
 
 def _path(name: str, suffix: str) -> Path:

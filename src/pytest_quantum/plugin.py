@@ -7,14 +7,17 @@ all framework fixtures.
 
 from __future__ import annotations
 
+import importlib.util
 from typing import TYPE_CHECKING, Any
 
+import numpy as np
 import pytest
 
 if TYPE_CHECKING:
     from collections.abc import Callable
 
-    from pytest import Config, Item, Parser
+    from numpy.typing import NDArray
+    from pytest import Config, Item, Metafunc, Parser
 
 
 # ---------------------------------------------------------------------------
@@ -55,6 +58,13 @@ def pytest_addoption(parser: Parser) -> None:
         default=False,
         help="Regenerate all pytest-quantum snapshot golden files.",
     )
+    group.addoption(
+        "--quantum-real",
+        action="store_true",
+        default=False,
+        help="Enable real quantum hardware tests (requires cloud credentials). "
+        "Tests marked @pytest.mark.quantum_real are skipped unless this flag is passed.",
+    )
 
 
 def pytest_configure(config: Config) -> None:
@@ -84,6 +94,11 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "quantum_backends(backends): run test on specified backends.",
     )
+    config.addinivalue_line(
+        "markers",
+        "quantum_real: mark test as requiring real quantum hardware "
+        "(run with --quantum-real; skipped by default).",
+    )
     # Set env var so snapshot helpers can detect the update flag without
     # needing access to the pytest config object.
     try:
@@ -102,15 +117,32 @@ def pytest_configure(config: Config) -> None:
 
 
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
-    """Skip quantum_slow tests unless --quantum-slow is supplied."""
-    if config.getoption("--quantum-slow", default=False):
-        return
-    skip_marker = pytest.mark.skip(
-        reason="Skipping quantum_slow test — pass --quantum-slow to run."
-    )
-    for item in items:
-        if "quantum_slow" in item.keywords:
-            item.add_marker(skip_marker)
+    """Skip quantum_slow and quantum_real tests unless appropriate flags are supplied."""
+    if not config.getoption("--quantum-slow", default=False):
+        skip_slow = pytest.mark.skip(
+            reason="Skipping quantum_slow test — pass --quantum-slow to run."
+        )
+        for item in items:
+            if "quantum_slow" in item.keywords:
+                item.add_marker(skip_slow)
+
+    if not config.getoption("--quantum-real", default=False):
+        skip_real = pytest.mark.skip(
+            reason="real hardware tests skipped (pass --quantum-real)"
+        )
+        for item in items:
+            if item.get_closest_marker("quantum_real"):
+                item.add_marker(skip_real)
+
+
+def pytest_generate_tests(metafunc: Metafunc) -> None:
+    """Parametrize tests with @pytest.mark.quantum_backends across backend names."""
+    marker = metafunc.definition.get_closest_marker("quantum_backends")
+    if marker and "quantum_backend_name" in metafunc.fixturenames:
+        backends = list(marker.args)
+        if not backends:
+            backends = ["qiskit", "cirq", "pennylane", "braket"]
+        metafunc.parametrize("quantum_backend_name", backends, scope="function")
 
 
 # ---------------------------------------------------------------------------
@@ -698,3 +730,261 @@ def shot_budget() -> Any:
             return f"ShotBudget(used={self.used}/{self.max_shots})"
 
     return ShotBudget
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — quantum_backends marker support
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def quantum_backend_name(request: pytest.FixtureRequest) -> str:  # type: ignore[return]
+    """Parametrized backend name from @pytest.mark.quantum_backends.
+
+    Auto-skips if the backend's SDK is not installed.
+
+    Usage::
+
+        @pytest.mark.quantum_backends("qiskit", "cirq", "pennylane")
+        def test_h_gate(quantum_backend_name):
+            if quantum_backend_name == "qiskit":
+                from qiskit import QuantumCircuit
+
+                qc = QuantumCircuit(1)
+                qc.h(0)
+                assert_unitary(qc, H_MATRIX)
+            elif quantum_backend_name == "cirq":
+                ...
+    """
+    name: str = request.param
+    sdk_map: dict[str, str] = {
+        "qiskit": "qiskit",
+        "cirq": "cirq",
+        "pennylane": "pennylane",
+        "braket": "braket",
+        "pytket": "pytket",
+        "stim": "stim",
+        "qutip": "qutip",
+    }
+    if name in sdk_map and importlib.util.find_spec(sdk_map[name]) is None:
+        pytest.skip(f"{name!r} SDK not installed (pip install pytest-quantum[{name}])")
+    return name
+
+
+@pytest.fixture
+def quantum_backend(
+    request: pytest.FixtureRequest, quantum_backend_name: str
+) -> object:
+    """Returns the primary simulator/runner for the current quantum_backend_name.
+
+    Maps backend names to their corresponding pytest-quantum fixtures:
+    - "qiskit"    -> aer_simulator
+    - "cirq"      -> cirq_simulator
+    - "pennylane" -> pennylane_device (factory)
+    - "braket"    -> braket_simulator
+    - "pytket"    -> pytket_circuit_factory
+    - "stim"      -> stim_sampler
+
+    Usage::
+
+        @pytest.mark.quantum_backends("qiskit", "cirq")
+        def test_something(quantum_backend, quantum_backend_name):
+            # quantum_backend is the simulator for the current backend
+            ...
+    """
+    fixture_map: dict[str, str] = {
+        "qiskit": "aer_simulator",
+        "cirq": "cirq_simulator",
+        "pennylane": "pennylane_device",
+        "braket": "braket_simulator",
+        "pytket": "pytket_circuit_factory",
+        "stim": "stim_sampler",
+    }
+    fixture_name = fixture_map.get(quantum_backend_name)
+    if fixture_name is None:
+        pytest.skip(f"No default fixture for backend {quantum_backend_name!r}")
+    return request.getfixturevalue(fixture_name)
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — IBM Quantum real hardware
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def ibm_backend(request: pytest.FixtureRequest) -> Any:
+    """IBM Quantum real hardware backend (session-scoped).
+
+    Auto-skips unless ``--quantum-real`` is passed.
+    Requires either:
+
+    - ``IBM_QUANTUM_TOKEN`` environment variable, OR
+    - A saved account via ``QiskitRuntimeService.save_account(token=...)``
+
+    Usage::
+
+        @pytest.mark.quantum_real
+        def test_h_on_hardware(ibm_backend):
+            from qiskit import QuantumCircuit, transpile
+
+            qc = QuantumCircuit(1)
+            qc.h(0)
+            qc.measure_all()
+            transpiled = transpile(qc, ibm_backend)
+            job = ibm_backend.run(transpiled, shots=1024)
+            counts = job.result().get_counts()
+            assert_measurement_distribution(counts, {"0": 0.5, "1": 0.5})
+    """
+    if not request.config.getoption("--quantum-real", default=False):
+        pytest.skip(
+            "IBM Quantum hardware test skipped. Pass --quantum-real to enable.\n"
+            "Also requires IBM_QUANTUM_TOKEN env var or saved QiskitRuntimeService account."
+        )
+
+    import os
+
+    _require("qiskit_ibm_runtime", "pip install qiskit-ibm-runtime")
+
+    try:
+        from qiskit_ibm_runtime import QiskitRuntimeService
+
+        token = os.environ.get("IBM_QUANTUM_TOKEN")
+        if token:
+            service = QiskitRuntimeService(channel="ibm_quantum", token=token)
+        else:
+            service = QiskitRuntimeService(channel="ibm_quantum")
+
+        backend = service.least_busy(
+            min_num_qubits=5,
+            operational=True,
+            simulator=False,
+        )
+        return backend
+    except Exception as exc:
+        pytest.skip(f"IBM Quantum backend unavailable: {exc}")
+
+
+@pytest.fixture(scope="session")
+def braket_cloud_device(request: pytest.FixtureRequest) -> Any:
+    """AWS Braket cloud quantum device (session-scoped).
+
+    Auto-skips unless ``--quantum-real`` is passed.
+    Requires:
+
+    - AWS credentials configured (``aws configure`` or env vars)
+    - ``BRAKET_DEVICE_ARN`` environment variable set to the device ARN,
+      e.g. ``arn:aws:braket:us-east-1::device/qpu/ionq/ionQdevice``
+
+    Usage::
+
+        @pytest.mark.quantum_real
+        def test_bell_on_ionq(braket_cloud_device):
+            from braket.circuits import Circuit
+
+            circuit = Circuit().h(0).cnot(0, 1).measure_all()
+            task = braket_cloud_device.run(circuit, shots=100)
+            counts = {str(k): v for k, v in task.result().measurement_counts.items()}
+            assert_measurement_distribution(counts, {"00": 0.5, "11": 0.5})
+    """
+    if not request.config.getoption("--quantum-real", default=False):
+        pytest.skip(
+            "AWS Braket cloud test skipped. Pass --quantum-real to enable.\n"
+            "Also requires AWS credentials and BRAKET_DEVICE_ARN env var."
+        )
+
+    import os
+
+    device_arn = os.environ.get("BRAKET_DEVICE_ARN")
+    if not device_arn:
+        pytest.skip(
+            "BRAKET_DEVICE_ARN not set. Set it to the device ARN, e.g.:\n"
+            "  export BRAKET_DEVICE_ARN=arn:aws:braket:us-east-1::device/qpu/ionq/ionQdevice"
+        )
+
+    _require("braket", "pip install pytest-quantum[braket]")
+
+    try:
+        from braket.aws import AwsDevice
+
+        return AwsDevice(device_arn)
+    except Exception as exc:
+        pytest.skip(f"AWS Braket device unavailable: {exc}")
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — QuTiP
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def qutip_solver() -> Any:
+    """QuTiP Lindblad master equation solver fixture.
+
+    Returns a callable ``solve(H, psi0, tlist, c_ops=None)`` that runs
+    ``qutip.mesolve`` and returns the final density matrix as a numpy array.
+
+    Requires: pip install pytest-quantum[qutip]
+
+    Usage::
+
+        def test_qubit_decay(qutip_solver):
+            import qutip
+            import numpy as np
+
+            H = qutip.sigmaz() / 2  # Hamiltonian
+            psi0 = qutip.basis(2, 0)  # |0> initial state
+            gamma = 0.1
+            c_ops = [np.sqrt(gamma) * qutip.sigmam()]  # decay operator
+            tlist = np.linspace(0, 10, 100)
+
+            rho_final = qutip_solver(H, psi0, tlist, c_ops=c_ops)
+            assert_purity_above(rho_final, min_purity=0.0)  # mixed, but valid
+    """
+    _require("qutip", "pip install qutip")
+
+    def _solve(
+        H: Any,
+        psi0: Any,
+        tlist: Any,
+        c_ops: list[Any] | None = None,
+    ) -> NDArray[np.complex128]:
+        import qutip
+
+        result = qutip.mesolve(H, psi0, tlist, c_ops or [], [])
+        final_state = result.states[-1]
+        # Convert to density matrix if pure state
+        rho = qutip.ket2dm(final_state) if final_state.type == "ket" else final_state
+        return np.asarray(rho.full(), dtype=np.complex128)
+
+    return _solve
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — Tequila
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def tequila_backend() -> Any:
+    """Tequila quantum chemistry circuit backend.
+
+    Returns the tequila module itself, since Tequila uses a functional API
+    (tq.simulate, tq.minimize, tq.ExpectationValue) rather than a backend object.
+
+    Requires: pip install tequila-basic
+
+    Usage::
+
+        def test_h2_vqe(tequila_backend):
+            import tequila as tq
+            import numpy as np
+
+            # Simple 1-qubit circuit
+            U = tq.gates.H(target=0)
+            result = tq.simulate(U)
+            assert abs(result[0]) ** 2 == pytest.approx(0.5, abs=1e-6)
+    """
+    _require("tequila", "pip install tequila-basic")
+    import tequila as tq
+
+    return tq
