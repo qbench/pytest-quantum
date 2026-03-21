@@ -138,10 +138,12 @@ def assert_channel_is_cptp(kraus_ops: list[Any], *, atol: float = 1e-8) -> None:
     deviation_fro = float(np.linalg.norm(completeness - identity, ord="fro"))
     if not np.allclose(completeness, identity, atol=atol):
         raise AssertionError(
-            f"Kraus operators do not satisfy the CPTP completeness relation "
-            f"(∑ K†K ≠ I).\n"
-            f"  ||∑ K†K - I||_fro : {deviation_fro:.2e}   (tolerance: {atol:.2e})\n"
-            f"  Number of Kraus ops: {len(ops)}   Hilbert space dim: {d}"
+            f"Kraus operators do not satisfy the CPTP completeness relation (ΣK†K ≠ I).\n"
+            f"  Number of Kraus operators: {len(ops)}\n"
+            f"  Matrix dimension: {d}x{d}\n"
+            f"  ||ΣK†K - I||_fro: {deviation_fro:.6f}  (tolerance: {atol:.2e})\n"
+            f"  Hint: Check that your Kraus operators form a valid quantum channel.\n"
+            f"        Use depolarizing_kraus(n_qubits=1, error_rate=0.1) for a valid example."
         )
 
 
@@ -187,8 +189,10 @@ def assert_process_fidelity_above(
             ) from exc
         if fidelity < threshold:
             raise AssertionError(
-                f"Process fidelity {fidelity:.6f} is below threshold {threshold}.\n"
-                f"  F_process(A, B) = {fidelity:.6f}  <  threshold = {threshold}"
+                f"Process fidelity {fidelity:.4f} < threshold {threshold}.\n"
+                f"  Fidelity:  {fidelity:.4f}\n"
+                f"  Threshold: {threshold}\n"
+                f"  Gap:       {threshold - fidelity:.4f}"
             )
         return
 
@@ -221,8 +225,10 @@ def assert_process_fidelity_above(
 
     if fidelity < threshold:
         raise AssertionError(
-            f"Process fidelity {fidelity:.6f} is below threshold {threshold}.\n"
-            f"  F_process(A, B) = {fidelity:.6f}  <  threshold = {threshold}"
+            f"Process fidelity {fidelity:.4f} < threshold {threshold}.\n"
+            f"  Fidelity:  {fidelity:.4f}\n"
+            f"  Threshold: {threshold}\n"
+            f"  Gap:       {threshold - fidelity:.4f}"
         )
 
 

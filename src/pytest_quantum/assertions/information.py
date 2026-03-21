@@ -42,18 +42,22 @@ def assert_hellinger_close(
     if hellinger > max_distance:
         # Build per-key table for the error message
         rows = [
-            f"  {'key':<12} {'p(key)':>10} {'q(key)':>10} {'|√p-√q|²':>12}",
-            f"  {'-' * 48}",
+            f"  {'Outcome':<12} {'p (left)':>10} {'q (right)':>10} {'√p':>10} {'√q':>10}",
+            f"  {'─' * 56}",
         ]
         for k, pi, qi in zip(all_keys, p, q, strict=True):
-            sq_diff = (float(np.sqrt(pi)) - float(np.sqrt(qi))) ** 2
-            rows.append(f"  {k:<12} {pi:>10.4f} {qi:>10.4f} {sq_diff:>12.4e}")
+            rows.append(
+                f"  {k:<12} {pi:>10.4f} {qi:>10.4f} "
+                f"{float(np.sqrt(pi)):>10.4f} {float(np.sqrt(qi)):>10.4f}"
+            )
         table = "\n".join(rows)
         raise AssertionError(
-            f"Hellinger distance H = {hellinger:.6f} exceeds max_distance "
-            f"{max_distance}.\n"
-            f"  H = (1/√2) ||√p - √q||₂ ∈ [0, 1]\n"
-            f"{table}"
+            f"Hellinger distance H = {hellinger:.4f} exceeds max_distance = {max_distance:.4f}.\n"
+            f"  H(p, q) = {hellinger:.4f}  (max allowed: {max_distance:.4f})\n"
+            f"\n"
+            f"{table}\n"
+            f"\n"
+            f"  Hint: H=0.0 means identical distributions, H=1.0 means completely different."
         )
 
 
@@ -102,10 +106,27 @@ def assert_kl_divergence_below(
         kl += p * float(np.log2(p / q))
 
     if kl > max_kl:
+        # Build per-outcome contribution table
+        rows = [
+            f"  {'Outcome':<12} {'observed':>10} {'expected':>10} {'contribution':>14}",
+            f"  {'─' * 50}",
+        ]
+        for outcome, count in sorted(counts.items()):
+            p_val = count / total
+            if p_val == 0.0:
+                continue
+            q_val = expected_probs.get(outcome, 0.0)
+            if q_val > 0.0:
+                contrib = p_val * float(np.log2(p_val / q_val))
+                rows.append(
+                    f"  {outcome:<12} {p_val:>10.4f} {q_val:>10.4f} {contrib:>+14.4f}"
+                )
+        table = "\n".join(rows)
         raise AssertionError(
-            f"KL divergence D_KL(observed||expected) = {kl:.6f} bits "
-            f"exceeds max_kl = {max_kl}.\n"
-            f"  D_KL = ∑ P(x) log₂(P(x)/Q(x))  (lower = more similar)"
+            f"KL divergence D(observed||expected) = {kl:.4f} exceeds max_kl = {max_kl:.4f}.\n"
+            f"  D_KL = {kl:.4f}  (max allowed: {max_kl:.4f})\n"
+            f"\n"
+            f"{table}"
         )
 
 

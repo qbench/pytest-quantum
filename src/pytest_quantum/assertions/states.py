@@ -68,6 +68,38 @@ def assert_state_fidelity_above(
         )
 
 
+def assert_normalized(statevector: object, *, atol: float = 1e-6) -> None:
+    """Assert statevector has unit norm: ||ψ||₂ = 1.
+
+    A common bug in manual statevector construction is forgetting to normalize.
+
+    Args:
+        statevector: Complex array-like of any shape (flattened internally).
+        atol: Absolute tolerance from 1.0 (default 1e-6).
+
+    Raises:
+        AssertionError: If ||sv||₂ is not within atol of 1.0, showing the actual norm.
+
+    Example::
+
+        >>> import numpy as np
+        >>> sv = np.array([1, 0, 0, 0], dtype=complex)  # |00>
+        >>> assert_normalized(sv)  # passes
+
+        >>> sv_bad = np.array([1, 1], dtype=complex)  # NOT normalized
+        >>> assert_normalized(sv_bad)  # fails: norm = 1.4142
+    """
+    sv = np.asarray(statevector, dtype=np.complex128).flatten()
+    norm = float(np.linalg.norm(sv))
+    if abs(norm - 1.0) > atol:
+        raise AssertionError(
+            f"Statevector is not normalized.\n"
+            f"  Norm: {norm:.6f}  (expected 1.0, tolerance: {atol:.2e})\n"
+            f"  Deviation: {abs(norm - 1.0):.6f}\n"
+            f"  Hint: divide by np.linalg.norm(sv) to normalize."
+        )
+
+
 def assert_states_close(
     actual: NDArray[np.complex128],
     target: NDArray[np.complex128],

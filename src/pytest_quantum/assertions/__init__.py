@@ -48,6 +48,7 @@ from pytest_quantum.assertions.snapshot import (
     assert_unitary_snapshot,
 )
 from pytest_quantum.assertions.states import (
+    assert_normalized,
     assert_state_fidelity_above,
     assert_states_close,
 )
@@ -92,6 +93,7 @@ __all__ = [
     "assert_kl_divergence_below",
     "assert_measurement_distribution",
     "assert_noise_fidelity_above",
+    "assert_normalized",
     "assert_partial_trace_close",
     "assert_positive_semidefinite",
     "assert_process_fidelity_above",

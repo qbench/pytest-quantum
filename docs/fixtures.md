@@ -14,6 +14,13 @@ def test_something(aer_simulator, graphix_backend):
 If the required SDK is not installed, the test is **automatically skipped**
 with a helpful install message rather than erroring out.
 
+### Skip message example
+
+```
+SKIPPED [1] conftest.py:22: 'qiskit_aer' is not installed.
+Install it with: pip install "pytest-quantum[qiskit]"
+```
+
 ---
 
 ## Quick reference
@@ -23,10 +30,19 @@ with a helpful install message rather than erroring out.
 | `aer_simulator` | Qiskit / Aer | `AerSimulator` (shot mode) | session | `[qiskit]` |
 | `aer_statevector_simulator` | Qiskit / Aer | `AerSimulator` (statevector mode) | session | `[qiskit]` |
 | `aer_noise_simulator` | Qiskit / Aer | `Callable[[float], AerSimulator]` | function | `[qiskit]` |
+| `qiskit_sampler` | Qiskit 1.0+ | `StatevectorSampler` | session | `[qiskit]` |
+| `qiskit_estimator` | Qiskit 1.0+ | `StatevectorEstimator` | session | `[qiskit]` |
 | `cirq_simulator` | Cirq | `cirq.Simulator` | session | `[cirq]` |
+| `cirq_sampler` | Cirq | `Callable[[Circuit, int], dict]` | session | `[cirq]` |
 | `braket_simulator` | Amazon Braket | `LocalSimulator` | session | `[braket]` |
 | `graphix_backend` | Graphix | `_GraphixBackend` | session | `[graphix]` |
-| `pennylane_device` | PennyLane | `Callable[[int, int|None], Device]` | session | `[pennylane]` |
+| `pennylane_device` | PennyLane | `Callable[[int, int\|None], Device]` | session | `[pennylane]` |
+| `pytket_circuit_factory` | Pytket | `pytket.Circuit` class | session | `[pytket]` |
+| `stim_sampler` | Stim | `Callable[[stim.Circuit, int], dict]` | session | `stim` |
+| `quantum_benchmark` | All | benchmark wrapper | function | `pytest-benchmark` |
+| `shot_budget` | All | shot counter object | function | (none) |
+| `quantum_shots` | All | `int \| None` | session | (none) |
+| `quantum_significance` | All | `float \| None` | session | (none) |
 
 **Session scope** means the backend is initialised **once per test run** and
 reused across all tests that request it. This avoids repeated startup costs
@@ -51,9 +67,7 @@ def test_bell_distribution(aer_simulator):
     from pytest_quantum import assert_measurement_distribution, min_shots
 
     qc = QuantumCircuit(2)
-    qc.h(0)
-    qc.cx(0, 1)
-    qc.measure_all()
+    qc.h(0); qc.cx(0, 1); qc.measure_all()
 
     shots = min_shots(epsilon=0.05)
     qc_t = transpile(qc, aer_simulator)
@@ -117,14 +131,10 @@ def test_noisy_bell(aer_noise_simulator):
     sim = aer_noise_simulator(error_rate=0.01)
 
     qc = QuantumCircuit(2)
-    qc.h(0)
-    qc.cx(0, 1)
-    qc.measure_all()
+    qc.h(0); qc.cx(0, 1); qc.measure_all()
 
     counts = sim.run(transpile(qc, sim), shots=2000).result().get_counts()
 
-    # With 1% noise the Bell distribution is slightly perturbed —
-    # use a lenient significance threshold
     assert_measurement_distribution(
         counts,
         expected_probs={"00": 0.5, "11": 0.5},
@@ -132,23 +142,53 @@ def test_noisy_bell(aer_noise_simulator):
     )
 ```
 
-**Different error rates in one test:**
+---
+
+### `qiskit_sampler` *(NEW in v0.2.0)*
+
+A session-scoped `StatevectorSampler` from the Qiskit 1.0+ Primitives API.
+Use this when your circuit uses the new Primitives interface instead of
+the legacy `backend.run()` pattern.
+
+**Returns:** `qiskit.primitives.StatevectorSampler`
+
+**Auto-skips when:** `qiskit` is not installed.
 
 ```python
-def test_error_rate_sweep(aer_noise_simulator):
-    from qiskit import QuantumCircuit, transpile
-    from pytest_quantum import tvd_from_counts
+def test_bell_sampler(qiskit_sampler):
+    from qiskit import QuantumCircuit
+    from pytest_quantum import assert_sampler_distribution
+
+    qc = QuantumCircuit(2, 2)
+    qc.h(0); qc.cx(0, 1); qc.measure([0, 1], [0, 1])
+
+    result = qiskit_sampler.run([qc], shots=2000).result()
+    assert_sampler_distribution(result[0], {"00": 0.5, "11": 0.5})
+```
+
+---
+
+### `qiskit_estimator` *(NEW in v0.2.0)*
+
+A session-scoped `StatevectorEstimator` from the Qiskit 1.0+ Primitives API.
+Use this to compute expectation values of observables.
+
+**Returns:** `qiskit.primitives.StatevectorEstimator`
+
+**Auto-skips when:** `qiskit` is not installed.
+
+```python
+def test_z_estimator(qiskit_estimator):
+    from qiskit import QuantumCircuit
+    from qiskit.quantum_info import SparsePauliOp
+    from pytest_quantum import assert_estimator_close
 
     qc = QuantumCircuit(1)
-    qc.h(0)
-    qc.measure_all()
+    qc.x(0)  # |1⟩
 
-    for rate in [0.0, 0.01, 0.05, 0.10]:
-        sim = aer_noise_simulator(error_rate=rate)
-        counts = sim.run(transpile(qc, sim), shots=1000).result().get_counts()
-        # Noisier simulators will deviate more from ideal {0: 0.5, 1: 0.5}
-        distance = tvd_from_counts(counts, {"0": 500, "1": 500})
-        assert distance < rate + 0.15   # rough bound
+    op = SparsePauliOp("Z")
+    result = qiskit_estimator.run([(qc, op)]).result()
+    assert_estimator_close(result[0], expected=-1.0, atol=1e-6)
 ```
 
 ---
@@ -175,12 +215,21 @@ def test_cirq_hadamard(cirq_simulator):
     assert np.allclose(np.abs(sv), np.abs(PLUS), atol=1e-6)
 ```
 
-**Sampling with Cirq:**
+---
+
+### `cirq_sampler` *(NEW in v0.2.0)*
+
+A session-scoped callable that runs Cirq circuits with shot simulation.
+Returns a standard count dictionary (string keys → integer counts).
+
+**Returns:** `Callable[[cirq.Circuit, int], dict[str, int]]`
+
+**Auto-skips when:** `cirq` is not installed.
 
 ```python
-def test_cirq_bell_sampling(cirq_simulator):
+def test_cirq_bell_sampling(cirq_sampler):
     import cirq
-    from pytest_quantum import assert_counts_close
+    from pytest_quantum import assert_measurement_distribution
 
     q0, q1 = cirq.LineQubit.range(2)
     circuit = cirq.Circuit([
@@ -189,16 +238,8 @@ def test_cirq_bell_sampling(cirq_simulator):
         cirq.measure(q0, q1, key="result"),
     ])
 
-    result = cirq_simulator.run(circuit, repetitions=1000)
-    # cirq returns a dict of {key: np.ndarray of shape (reps, n_qubits)}
-    raw = result.measurements["result"]
-    # Convert to bitstring counts for assert_counts_close
-    counts = {}
-    for row in raw:
-        key = "".join(str(b) for b in row)
-        counts[key] = counts.get(key, 0) + 1
-
-    assert_counts_close(counts, {"00": 500, "11": 500}, max_tvd=0.1)
+    counts = cirq_sampler(circuit, shots=2000)
+    assert_measurement_distribution(counts, {"00": 0.5, "11": 0.5})
 ```
 
 ---
@@ -220,27 +261,12 @@ def test_braket_bell(braket_simulator):
 
     task = braket_simulator.run(circ, shots=1000)
     counts_raw = task.result().measurement_counts
-    # Braket uses integer-key tuples — convert to string bitstrings
     counts = {"".join(str(b) for b in k): v for k, v in counts_raw.items()}
 
     assert_measurement_distribution(
         counts,
         expected_probs={"00": 0.5, "11": 0.5},
     )
-```
-
-**Circuit structure check with Braket:**
-
-```python
-from pytest_quantum import assert_circuit_depth, assert_circuit_width
-
-def test_braket_circuit_structure():
-    from braket.circuits import Circuit
-
-    circ = Circuit().h(0).cnot(0, 1).h(1)
-
-    assert_circuit_width(circ, expected_qubits=2)
-    assert_circuit_depth(circ, max_depth=3)
 ```
 
 ---
@@ -257,16 +283,6 @@ single method:
 graphix_backend.run_pattern(pattern, input_state=None)
 ```
 
-This compiles and runs the `Pattern` using `graphix.simulator.PatternSimulator`
-in statevector mode, then returns the output state as a 1-D complex numpy array
-of shape `(2**n_output_qubits,)`.
-
-**Parameters of `run_pattern`:**
-
-: `pattern` — A `graphix.pattern.Pattern` instance.
-: `input_state` — Optional `graphix.states.BasicStates` value. If `None`,
-  the default input state is used.
-
 ```python
 import numpy as np
 from pytest_quantum import assert_state_fidelity_above
@@ -277,31 +293,12 @@ def test_graphix_bell(graphix_backend):
     from graphix.transpiler import Circuit
 
     circuit = Circuit(2)
-    circuit.h(0)
-    circuit.cnot(0, 1)
+    circuit.h(0); circuit.cnot(0, 1)
 
     pattern = circuit.transpile().pattern
     output_state = graphix_backend.run_pattern(pattern)
 
     assert_state_fidelity_above(output_state, BELL, threshold=0.999)
-```
-
-**With a custom input state:**
-
-```python
-def test_graphix_custom_input(graphix_backend):
-    from graphix.states import BasicStates
-    from graphix.transpiler import Circuit
-    import numpy as np
-
-    # Run a single-qubit H on a |1⟩ input
-    circuit = Circuit(1)
-    circuit.h(0)
-    pattern = circuit.transpile().pattern
-
-    MINUS = np.array([1, -1], dtype=complex) / np.sqrt(2)
-    output = graphix_backend.run_pattern(pattern, input_state=BasicStates.ONE)
-    assert_state_fidelity_above(output, MINUS, threshold=0.999)
 ```
 
 :::{note}
@@ -321,8 +318,12 @@ A session-scoped fixture that returns a **factory function**
 `make_device(wires, shots=None)`. Call it to create a `pennylane.device`
 with the right number of wires for your circuit.
 
-Using a factory instead of a single device allows different tests to use
-different wire counts while still benefiting from a single fixture scope.
+:::warning Important: PennyLane requires circuit execution before gate count assertions
+
+When using `assert_gate_count` with PennyLane QNodes, the QNode must have been
+executed at least once before calling `assert_gate_count`. The auto-dry-run handles
+this automatically, but be aware it may produce unexpected side effects.
+:::
 
 ```python
 def test_pennylane_bell(pennylane_device):
@@ -344,52 +345,151 @@ def test_pennylane_bell(pennylane_device):
     assert_state_fidelity_above(state, BELL)
 ```
 
-**Shot-based sampling with PennyLane:**
+---
+
+## Pytket
+
+### `pytket_circuit_factory` *(NEW in v0.3.0)*
+
+A session-scoped fixture that returns the `pytket.Circuit` class itself.
+This allows your tests to construct Pytket circuits without importing
+pytket directly (the fixture auto-skips if pytket is not installed).
+
+**Returns:** `pytket.Circuit` (the class)
+
+**Auto-skips when:** `pytket` is not installed.
+Install: `pip install pytket`
 
 ```python
-def test_pennylane_sampling(pennylane_device):
-    import pennylane as qml
-    import numpy as np
+def test_pytket_bell(pytket_circuit_factory):
+    from pytest_quantum import assert_unitary
+    import numpy as np, math
 
-    dev = pennylane_device(wires=2, shots=1000)
+    Circuit = pytket_circuit_factory
+    circ = Circuit(2)
+    circ.H(0)
+    circ.CX(0, 1)
 
-    @qml.qnode(dev)
-    def bell_circuit():
-        qml.Hadamard(0)
-        qml.CNOT([0, 1])
-        return qml.counts()
-
-    raw_counts = bell_circuit()
-    # PennyLane returns tensor keys — convert to string counts
-    counts = {str(k): int(v) for k, v in raw_counts.items()}
-
-    from pytest_quantum import assert_measurement_distribution
-    assert_measurement_distribution(
-        counts,
-        expected_probs={"00": 0.5, "11": 0.5},
-    )
+    BELL = np.array([[1,0,0,1],[0,1,1,0],[0,1,-1,0],[1,0,0,-1]], dtype=complex) / math.sqrt(2)
+    assert_unitary(circ, BELL)
 ```
 
-**Gate count check with PennyLane:**
+---
+
+## Stim
+
+### `stim_sampler` *(NEW in v0.3.0)*
+
+A session-scoped callable that runs Stim circuits and returns count
+dictionaries.
+
+**Returns:** `Callable[[stim.Circuit, int], dict[str, int]]`
+
+**Auto-skips when:** `stim` is not installed.
+Install: `pip install stim`
 
 ```python
-def test_pennylane_gate_count(pennylane_device):
-    import pennylane as qml
-    from pytest_quantum import assert_gate_count
+def test_stim_basic(stim_sampler):
+    import stim
 
-    dev = pennylane_device(wires=3)
+    circuit = stim.Circuit("""
+        H 0
+        CNOT 0 1
+        M 0 1
+    """)
+    counts = stim_sampler(circuit, shots=2000)
 
-    @qml.qnode(dev)
-    def ghz_circuit():
-        qml.Hadamard(0)
-        qml.CNOT([0, 1])
-        qml.CNOT([1, 2])
-        return qml.state()
+    from pytest_quantum import assert_measurement_distribution
+    assert_measurement_distribution(counts, {"00": 0.5, "11": 0.5})
+```
 
-    ghz_circuit()   # must be called first to populate the tape
+---
 
-    assert_gate_count(ghz_circuit, "Hadamard", 1)
-    assert_gate_count(ghz_circuit, "CNOT", 2)
+## Benchmarking and Utilities
+
+### `quantum_benchmark` *(NEW in v0.3.0)*
+
+A function-scoped fixture that wraps `pytest-benchmark` for circuit timing.
+Use this to measure and track circuit execution time across releases.
+
+**Returns:** benchmark wrapper object compatible with `pytest-benchmark`
+
+**Auto-skips when:** `pytest-benchmark` is not installed.
+
+```python
+def test_circuit_performance(quantum_benchmark):
+    from qiskit import QuantumCircuit
+    from pytest_quantum import assert_unitary
+    import numpy as np
+
+    def run_circuit():
+        from qiskit import QuantumCircuit
+        qc = QuantumCircuit(5)
+        qc.h(0)
+        for i in range(4): qc.cx(i, i+1)
+        return qc
+
+    result = quantum_benchmark(run_circuit)
+```
+
+---
+
+### `shot_budget` *(NEW in v0.3.0)*
+
+A function-scoped shot counting tracker. Use this when you need to track
+the total number of shots used across multiple circuit runs in one test.
+
+**Returns:** a `ShotBudget` object with `.add(n)` and `.total` attributes.
+
+```python
+def test_shot_budget(shot_budget):
+    shot_budget.add(1000)  # first circuit run
+    shot_budget.add(500)   # second circuit run
+    assert shot_budget.total <= 2000, "Exceeded shot budget"
+```
+
+---
+
+### `quantum_shots` *(NEW in v0.2.0)*
+
+A session-scoped fixture that reads the `--quantum-shots` CLI option.
+Use this to write tests that respect the global shot override.
+
+**Returns:** `int | None`
+
+```python
+def test_adaptive_shots(aer_simulator, quantum_shots):
+    from qiskit import QuantumCircuit, transpile
+    from pytest_quantum import assert_measurement_distribution
+
+    shots = quantum_shots or 1000  # use CLI override or default 1000
+
+    qc = QuantumCircuit(1)
+    qc.h(0); qc.measure_all()
+    counts = aer_simulator.run(transpile(qc, aer_simulator), shots=shots).result().get_counts()
+
+    assert_measurement_distribution(counts, {"0": 0.5, "1": 0.5})
+```
+
+---
+
+### `quantum_significance` *(NEW in v0.2.0)*
+
+A session-scoped fixture that reads the `--quantum-significance` CLI option.
+
+**Returns:** `float | None`
+
+```python
+def test_adaptive_significance(aer_simulator, quantum_significance):
+    from qiskit import QuantumCircuit, transpile
+    from pytest_quantum import assert_measurement_distribution
+
+    sig = quantum_significance or 0.05  # use CLI override or default
+
+    qc = QuantumCircuit(1)
+    qc.h(0); qc.measure_all()
+    counts = aer_simulator.run(transpile(qc, aer_simulator), shots=1000).result().get_counts()
+    assert_measurement_distribution(counts, {"0": 0.5, "1": 0.5}, significance=sig)
 ```
 
 ---
@@ -422,8 +522,8 @@ def test_custom_backend():
 If the required package is not installed, the test is skipped with a message:
 
 ```
-SKIPPED [1] conftest.py: 'qiskit_aer' is not installed.
-Install it with: pip install pytest-quantum[qiskit]
+SKIPPED [1] conftest.py:22: 'qiskit_aer' is not installed.
+Install it with: pip install "pytest-quantum[qiskit]"
 ```
 
 This means you can have a single test suite that covers multiple frameworks

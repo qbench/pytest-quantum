@@ -5,6 +5,71 @@ in under five minutes.
 
 ---
 
+## 5-Minute Quick Start
+
+Install with Qiskit and Cirq support:
+
+```bash
+pip install "pytest-quantum[qiskit,cirq]"
+```
+
+Create `test_quick.py`:
+
+```python
+# test_quick.py — copy this and run immediately
+import math
+import numpy as np
+from pytest_quantum import (
+    assert_circuit_depth,
+    assert_circuits_equivalent,
+    assert_measurement_distribution,
+    assert_unitary,
+)
+
+HADAMARD = np.array([[1, 1], [1, -1]], dtype=complex) / math.sqrt(2)
+
+
+def test_h_gate_unitary():
+    """H gate should implement the Hadamard unitary."""
+    from qiskit import QuantumCircuit
+    qc = QuantumCircuit(1)
+    qc.h(0)
+    assert_unitary(qc, HADAMARD)
+
+
+def test_bell_measurement_distribution(aer_simulator):
+    """Bell state should produce 50/50 counts."""
+    from qiskit import QuantumCircuit, transpile
+    qc = QuantumCircuit(2)
+    qc.h(0); qc.cx(0, 1); qc.measure_all()
+    counts = aer_simulator.run(transpile(qc, aer_simulator), shots=2000).result().get_counts()
+    assert_measurement_distribution(counts, {"00": 0.5, "11": 0.5})
+
+
+def test_bell_circuit_structure():
+    """Bell circuit should have 2 qubits and depth ≤ 3."""
+    from qiskit import QuantumCircuit
+    qc = QuantumCircuit(2)
+    qc.h(0); qc.cx(0, 1)
+    assert_circuit_depth(qc, max_depth=3)
+```
+
+Run it:
+
+```bash
+pytest test_quick.py -v
+```
+
+Expected output:
+
+```
+test_quick.py::test_h_gate_unitary PASSED
+test_quick.py::test_bell_measurement_distribution PASSED
+test_quick.py::test_bell_circuit_structure PASSED
+```
+
+---
+
 ## Installation
 
 ### Core package
@@ -13,9 +78,8 @@ in under five minutes.
 pip install pytest-quantum
 ```
 
-The core package depends only on `pytest`, `numpy`, and `scipy`. It provides
-all assertion and statistics utilities, but the simulator fixtures require the
-corresponding SDK extras.
+The core package depends only on `pytest`, `numpy`, and `scipy`. All assertion
+and statistics utilities work without any quantum SDK installed.
 
 ### Framework extras
 
@@ -116,6 +180,63 @@ observable.
 
 ---
 
+## First PennyLane test
+
+```python
+# test_pennylane_basic.py
+import numpy as np
+from pytest_quantum import assert_state_fidelity_above
+
+
+def test_rx_gate(pennylane_device):
+    import pennylane as qml
+
+    dev = pennylane_device(wires=1)
+
+    @qml.qnode(dev)
+    def rx_circuit(theta):
+        qml.RX(theta, wires=0)
+        return qml.state()
+
+    state = np.array(rx_circuit(np.pi))  # RX(π) = -iX|0⟩ = -i|1⟩
+    expected = np.array([0, -1j])
+    assert_state_fidelity_above(state, expected, threshold=0.99)
+```
+
+Install PennyLane support:
+
+```bash
+pip install "pytest-quantum[pennylane]"
+```
+
+---
+
+## First Cirq test
+
+```python
+# test_cirq_basic.py
+import math
+import numpy as np
+from pytest_quantum import assert_unitary
+
+
+def test_hadamard_cirq(cirq_simulator):
+    import cirq
+
+    q = cirq.LineQubit.range(1)
+    circuit = cirq.Circuit(cirq.H(q[0]))
+    H = np.array([[1, 1], [1, -1]]) / math.sqrt(2)
+    assert_unitary(circuit, H)
+```
+
+Install Cirq support:
+
+```bash
+pip install "pytest-quantum[cirq]"
+```
+
+---
+
 ## Using markers
 
 pytest-quantum ships four markers. Declare them in your test functions or
@@ -178,6 +299,51 @@ def test_noisy_circuit(aer_noise_simulator):
 
 ---
 
+## Registering markers in pyproject.toml
+
+To suppress `PytestUnknownMarkWarning`, register markers in your `pyproject.toml`:
+
+```toml
+[tool.pytest.ini_options]
+markers = [
+    "quantum: mark test as quantum",
+    "quantum_slow: mark slow quantum tests (run with --quantum-slow)",
+    "quantum_snapshot: mark snapshot tests (update with --quantum-update-snapshots)",
+]
+```
+
+---
+
+## How many shots?
+
+Use the `min_shots` and `recommended_shots` utilities to calculate the right shot count:
+
+```python
+from pytest_quantum import min_shots, recommended_shots
+
+# Minimum shots to detect a 5% TVD error with 80% statistical power
+n = min_shots(epsilon=0.05)      # → 293 shots
+
+# Minimum shots to detect a 1% TVD error
+n = min_shots(epsilon=0.01)      # → 7299 shots
+
+# Shots driven by your specific expected distribution
+# (ensures at least 5 expected counts per bucket for chi-square validity)
+n = recommended_shots({"00": 0.499, "01": 0.001, "10": 0.001, "11": 0.499})
+# → 5000 (driven by the 0.1% outcomes)
+```
+
+Rule of thumb:
+
+| Sensitivity needed | Shots |
+|---|---|
+| Rough check (10% error detectable) | ~74 |
+| Standard CI (5% error detectable) | ~293 |
+| Thorough (2% error detectable) | ~1832 |
+| High precision (1% error detectable) | ~7299 |
+
+---
+
 ## CLI options
 
 | Option | Default | Description |
@@ -185,6 +351,7 @@ def test_noisy_circuit(aer_noise_simulator):
 | `--quantum-slow` | off | Include `quantum_slow`-marked tests |
 | `--quantum-shots N` | `None` | Override shot count globally |
 | `--quantum-significance P` | `None` | Override p-value threshold globally |
+| `--quantum-update-snapshots` | off | Regenerate snapshot files |
 
 ```bash
 # CI: run everything including slow tests, with 1 000 shots
@@ -192,6 +359,9 @@ pytest --quantum-slow --quantum-shots 1000
 
 # Local: quick smoke test with lenient statistics
 pytest --quantum-shots 100 --quantum-significance 0.001
+
+# Update all snapshots after intentional circuit change
+pytest --quantum-update-snapshots
 ```
 
 ---
@@ -250,8 +420,8 @@ pip install "pytest-quantum[qcec]"
 
 ## Next steps
 
-- Read the [Assertions Reference](assertions.md) for a full description of
-  every assertion, with examples and a decision guide.
+- Read [Concepts](concepts.md) to understand shot noise, global phase, and qubit ordering.
+- Read the [Assertions Reference](assertions.md) for all 38 assertions with examples.
 - See [Fixtures](fixtures.md) for all simulator fixtures and their usage.
-- See [Statistics Utilities](stats.md) for shot-count calculators and
-  statistical primitives.
+- Browse the [Cookbook](cookbook.md) for complete working recipes.
+- See [Statistics Utilities](stats.md) for shot-count calculators and statistical primitives.

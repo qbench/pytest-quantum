@@ -54,10 +54,13 @@ def assert_entanglement_entropy_below(
 
     if entropy > max_entropy + 1e-12:
         raise AssertionError(
-            f"Entanglement entropy S(rho_A) = {entropy:.6f} bits exceeds "
-            f"max_entropy = {max_entropy}.\n"
-            f"  Partition (subsystem A): {partition}\n"
-            f"  Subsystem A dim: {rho_a.shape[0]}"
+            f"Entanglement entropy S(ρ_A) = {entropy:.4f} bits exceeds "
+            f"max_entropy = {max_entropy} bits.\n"
+            f"  Partition (kept qubits): {list(partition)}\n"
+            f"  Full system: {n} qubits\n"
+            f"  S = {entropy:.4f} bits  (max allowed: {max_entropy:.4f} bits)\n"
+            f"  Hint: S = 1.0 for a maximally entangled Bell state;\n"
+            f"        S = 0.0 for a product (separable) state."
         )
 
 
@@ -111,12 +114,30 @@ def assert_bloch_sphere_close(
         # Convert actual Bloch vector to (theta, phi)
         actual_theta = float(np.arccos(np.clip(r_z, -1.0, 1.0)))
         actual_phi = float(np.arctan2(r_y, r_x)) % (2 * float(np.pi))
+
+        # Provide human-readable labels for common positions
+        def _bloch_label(theta: float, phi: float) -> str:
+            if abs(theta) < 0.05:
+                return "|0⟩ = north pole"
+            if abs(theta - float(np.pi)) < 0.05:
+                return "south pole"
+            if abs(theta - float(np.pi) / 2) < 0.05 and abs(phi) < 0.05:
+                return "|+⟩ = equator +x"
+            return ""
+
+        exp_label = _bloch_label(expected_theta, expected_phi)
+        act_label = _bloch_label(actual_theta, actual_phi)
+        exp_str = f"θ={expected_theta:.3f} rad, φ={expected_phi:.3f} rad"
+        act_str = f"θ={actual_theta:.3f} rad, φ={actual_phi:.3f} rad"
+        if exp_label:
+            exp_str += f"  ({exp_label})"
+        if act_label:
+            act_str += f"  ({act_label})"
         raise AssertionError(
-            f"Bloch sphere position mismatch (Euclidean distance {dist:.4f} > {atol}).\n"
-            f"  Expected (theta, phi) : ({expected_theta:.4f}, {expected_phi:.4f})\n"
-            f"  Actual   (theta, phi) : ({actual_theta:.4f}, {actual_phi:.4f})\n"
-            f"  Expected Bloch vector : ({ex:.4f}, {ey:.4f}, {ez:.4f})\n"
-            f"  Actual   Bloch vector : ({r_x:.4f}, {r_y:.4f}, {r_z:.4f})"
+            f"Bloch sphere position mismatch.\n"
+            f"  Expected: {exp_str}\n"
+            f"  Actual:   {act_str}\n"
+            f"  Bloch vector distance: {dist:.4f}  (max allowed: {atol})"
         )
 
 
@@ -167,11 +188,10 @@ def assert_schmidt_rank_at_most(
     rank = int(np.sum(singular_values > tol))
 
     if rank > max_rank:
+        significant_svs = [round(float(s), 4) for s in singular_values if s > tol]
         raise AssertionError(
             f"Schmidt rank {rank} exceeds max_rank {max_rank}.\n"
-            f"  Partition (subsystem A) : {partition}\n"
-            f"  Subsystem A dim         : {dim_a}\n"
-            f"  Subsystem B dim         : {dim_b}\n"
-            f"  Singular values         : {singular_values.tolist()}\n"
-            f"  (threshold for counting : {tol:.2e})"
+            f"  Partition A qubits: {list(partition)}\n"
+            f"  Non-zero Schmidt coefficients: {significant_svs}\n"
+            f"  Rank 1 = separable/product state; Rank > 1 = entangled."
         )
