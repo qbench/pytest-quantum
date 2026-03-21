@@ -6,6 +6,12 @@ on failure — designed to integrate naturally with pytest's output.
 
 from __future__ import annotations
 
+from pytest_quantum.assertions.benchmarking import (
+    assert_gate_fidelity_above,
+    assert_quantum_volume,
+    assert_randomized_benchmarking,
+    assert_t1_above,
+)
 from pytest_quantum.assertions.channels import (
     assert_channel_is_cptp,
     assert_commutes_with,
@@ -18,6 +24,11 @@ from pytest_quantum.assertions.compilation import (
     assert_gate_count_after_transpilation,
     assert_transpilation_depth_below,
     assert_transpilation_equivalent,
+)
+from pytest_quantum.assertions.cross_platform import (
+    assert_cross_platform_equivalent,
+    assert_qiskit_cirq_equivalent,
+    assert_qiskit_pytket_equivalent,
 )
 from pytest_quantum.assertions.density import (
     assert_density_matrix_close,
@@ -48,9 +59,20 @@ from pytest_quantum.assertions.information import (
 )
 from pytest_quantum.assertions.mitiq_assertions import (
     assert_cdr_reduces_error,
+    assert_error_mitigation_benchmark,
     assert_mitigation_improves_fidelity,
+    assert_pec_expectation_close,
+    assert_pec_reduces_error,
     assert_zne_expectation_close,
     assert_zne_reduces_error,
+)
+from pytest_quantum.assertions.noise_models import (
+    assert_amplitude_damping_channel,
+    assert_channel_diamond_norm_below,
+    assert_channel_preserves_trace,
+    assert_dephasing_channel,
+    assert_depolarizing_channel,
+    assert_no_leakage,
 )
 from pytest_quantum.assertions.observables import (
     assert_expectation_value_close,
@@ -80,6 +102,7 @@ from pytest_quantum.assertions.structure import (
     assert_circuit_is_clifford,
     assert_circuit_width,
     assert_gate_count,
+    assert_gates_in_basis_set,
     assert_has_diagram,
 )
 from pytest_quantum.assertions.sweeps import (
@@ -94,11 +117,14 @@ from pytest_quantum.assertions.unitary import (
 )
 
 __all__ = [
+    "assert_amplitude_damping_channel",
     "assert_backend_calibration",
     "assert_backend_executes",
     "assert_bloch_sphere_close",
     "assert_cdr_reduces_error",
+    "assert_channel_diamond_norm_below",
     "assert_channel_is_cptp",
+    "assert_channel_preserves_trace",
     "assert_circuit_depth",
     "assert_circuit_fits_backend",
     "assert_circuit_is_clifford",
@@ -109,13 +135,19 @@ __all__ = [
     "assert_commutes_with",
     "assert_counts_close",
     "assert_cross_entropy_below",
+    "assert_cross_platform_equivalent",
     "assert_density_matrix_close",
+    "assert_dephasing_channel",
+    "assert_depolarizing_channel",
     "assert_distribution_snapshot",
     "assert_entanglement_entropy_below",
+    "assert_error_mitigation_benchmark",
     "assert_estimator_close",
     "assert_expectation_value_close",
     "assert_gate_count",
     "assert_gate_count_after_transpilation",
+    "assert_gate_fidelity_above",
+    "assert_gates_in_basis_set",
     "assert_ground_state_energy_close",
     "assert_has_diagram",
     "assert_hellinger_close",
@@ -124,14 +156,21 @@ __all__ = [
     "assert_measurement_distribution",
     "assert_mirror_fidelity",
     "assert_mitigation_improves_fidelity",
+    "assert_no_leakage",
     "assert_noise_fidelity_above",
     "assert_normalized",
     "assert_parametrized_unitary_continuous",
     "assert_partial_trace_close",
+    "assert_pec_expectation_close",
+    "assert_pec_reduces_error",
     "assert_positive_semidefinite",
     "assert_process_fidelity_above",
     "assert_purity_above",
     "assert_qasm_roundtrip",
+    "assert_qiskit_cirq_equivalent",
+    "assert_qiskit_pytket_equivalent",
+    "assert_quantum_volume",
+    "assert_randomized_benchmarking",
     "assert_real_counts_close",
     "assert_sampler_distribution",
     "assert_schmidt_rank_at_most",
@@ -140,6 +179,7 @@ __all__ = [
     "assert_states_close",
     "assert_stim_detector_error_rate_below",
     "assert_stim_logical_error_rate_below",
+    "assert_t1_above",
     "assert_trace_distance_below",
     "assert_transpilation_depth_below",
     "assert_transpilation_equivalent",

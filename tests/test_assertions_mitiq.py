@@ -532,3 +532,151 @@ class TestRealMitiq:
 
         # ZNE of a constant function is itself — extrapolation returns ~1.0
         assert_zne_expectation_close(qc, constant_executor, expected=1.0, atol=0.5)
+
+
+# ---------------------------------------------------------------------------
+# assert_pec_reduces_error — mocked mitiq
+# ---------------------------------------------------------------------------
+
+
+def _make_mock_pec(mitigated_value: float = 0.05) -> MagicMock:
+    """Return a mock mitiq.pec module."""
+    mock_pec = MagicMock()
+    mock_pec.execute_with_pec.return_value = mitigated_value
+    return mock_pec
+
+
+def test_pec_reduces_error_returns_tuple() -> None:
+    """assert_pec_reduces_error should return (unmitigated, mitigated) as floats."""
+    from pytest_quantum.assertions.mitiq_assertions import assert_pec_reduces_error
+
+    mock_mitiq = MagicMock()
+    mock_pec = _make_mock_pec(mitigated_value=0.02)
+    mock_mitiq.pec = mock_pec
+
+    with patch.dict(sys.modules, {"mitiq": mock_mitiq, "mitiq.pec": mock_pec}):
+        result = assert_pec_reduces_error(
+            circuit=object(),
+            executor=_simple_executor,
+            noise_model=object(),
+        )
+
+    assert isinstance(result, tuple)
+    assert len(result) == 2
+    unmitigated, mitigated = result
+    assert isinstance(unmitigated, float)
+    assert isinstance(mitigated, float)
+
+
+def test_pec_reduces_error_raises_import_error_without_mitiq() -> None:
+    """assert_pec_reduces_error raises ImportError when mitiq is not installed."""
+    from pytest_quantum.assertions.mitiq_assertions import assert_pec_reduces_error
+
+    with (
+        patch.dict(sys.modules, {"mitiq": None, "mitiq.pec": None}),
+        pytest.raises(ImportError, match="mitiq"),
+    ):
+        assert_pec_reduces_error(object(), _simple_executor, object())
+
+
+# ---------------------------------------------------------------------------
+# assert_pec_expectation_close — mocked mitiq
+# ---------------------------------------------------------------------------
+
+
+def test_pec_expectation_close_passes() -> None:
+    """assert_pec_expectation_close passes when mitigated is within atol."""
+    from pytest_quantum.assertions.mitiq_assertions import assert_pec_expectation_close
+
+    mock_mitiq = MagicMock()
+    mock_pec = _make_mock_pec(mitigated_value=0.95)  # close to expected=1.0
+    mock_mitiq.pec = mock_pec
+
+    with patch.dict(sys.modules, {"mitiq": mock_mitiq, "mitiq.pec": mock_pec}):
+        # Should not raise; |0.95 - 1.0| = 0.05 <= atol=0.1
+        assert_pec_expectation_close(
+            object(), _simple_executor, object(), expected=1.0, atol=0.1
+        )
+
+
+def test_pec_expectation_close_fails() -> None:
+    """assert_pec_expectation_close raises AssertionError when outside atol."""
+    from pytest_quantum.assertions.mitiq_assertions import assert_pec_expectation_close
+
+    mock_mitiq = MagicMock()
+    mock_pec = _make_mock_pec(mitigated_value=0.5)  # 0.5 away from expected=1.0
+    mock_mitiq.pec = mock_pec
+
+    with (
+        patch.dict(sys.modules, {"mitiq": mock_mitiq, "mitiq.pec": mock_pec}),
+        pytest.raises(AssertionError) as exc_info,
+    ):
+        assert_pec_expectation_close(
+            object(), _simple_executor, object(), expected=1.0, atol=0.1
+        )
+
+    err = str(exc_info.value)
+    assert "PEC-mitigated" in err
+    assert "Mitigated" in err
+    assert "Expected" in err
+    assert "Unmitigated" in err
+
+
+# ---------------------------------------------------------------------------
+# assert_error_mitigation_benchmark — mocked mitiq
+# ---------------------------------------------------------------------------
+
+
+def test_error_mitigation_benchmark_all_pass() -> None:
+    """All methods within atol — returns dict with all method results."""
+    from pytest_quantum.assertions.mitiq_assertions import (
+        assert_error_mitigation_benchmark,
+    )
+
+    mock_mitiq = _make_mock_mitiq(mitigated_value=0.05)
+    # ideal_executor returns 0.0; mitigated=0.05; |0.05 - 0.0| = 0.05 <= atol=0.1
+    mock_mitiq.zne.execute_with_zne.return_value = 0.05
+
+    with patch.dict(sys.modules, {"mitiq": mock_mitiq, "mitiq.zne": mock_mitiq.zne}):
+        results = assert_error_mitigation_benchmark(
+            circuit=object(),
+            ideal_executor=_ideal_executor,
+            noisy_executor=_simple_executor,
+            methods=["zne_richardson", "zne_linear"],
+            atol=0.1,
+        )
+
+    assert isinstance(results, dict)
+    assert "zne_richardson" in results
+    assert "zne_linear" in results
+    for val in results.values():
+        assert isinstance(val, float)
+
+
+def test_error_mitigation_benchmark_some_fail() -> None:
+    """When a method exceeds atol, AssertionError with helpful message is raised."""
+    from pytest_quantum.assertions.mitiq_assertions import (
+        assert_error_mitigation_benchmark,
+    )
+
+    mock_mitiq = _make_mock_mitiq()
+    # ideal_executor returns 0.0; mitigated=0.5; |0.5 - 0.0| = 0.5 > atol=0.1
+    mock_mitiq.zne.execute_with_zne.return_value = 0.5
+
+    with (
+        patch.dict(sys.modules, {"mitiq": mock_mitiq, "mitiq.zne": mock_mitiq.zne}),
+        pytest.raises(AssertionError) as exc_info,
+    ):
+        assert_error_mitigation_benchmark(
+            circuit=object(),
+            ideal_executor=_ideal_executor,
+            noisy_executor=_simple_executor,
+            methods=["zne_richardson", "zne_linear"],
+            atol=0.1,
+        )
+
+    err = str(exc_info.value)
+    assert "benchmark failed" in err
+    # Both methods should be reported as failing
+    assert "zne_richardson" in err
+    assert "zne_linear" in err

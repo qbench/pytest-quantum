@@ -893,6 +893,127 @@ def ibm_backend(request: pytest.FixtureRequest) -> Any:
 
 
 @pytest.fixture(scope="session")
+def ionq_backend(request: pytest.FixtureRequest) -> Any:
+    """Real IonQ quantum backend via Azure Quantum or IonQ cloud.
+
+    Requires:
+        - --quantum-real CLI flag
+        - IONQ_API_KEY environment variable
+        - Optional: IONQ_BACKEND env var ("simulator" or "qpu.aria-1", "qpu.forte-1", default "simulator")
+
+    Example::
+
+        def test_on_ionq(ionq_backend):
+            from qiskit import QuantumCircuit
+            qc = QuantumCircuit(1, 1)
+            qc.h(0)
+            qc.measure(0, 0)
+            counts = assert_backend_executes(qc, ionq_backend, shots=1024)
+    """
+    if not request.config.getoption("--quantum-real", default=False):
+        pytest.skip("--quantum-real not set")
+
+    api_key = os.environ.get("IONQ_API_KEY", "")
+    if not api_key:
+        pytest.skip(
+            "IONQ_API_KEY not set. Export your IonQ API key:\n"
+            "  export IONQ_API_KEY=<your-api-key>\n"
+            "Get one at https://cloud.ionq.com"
+        )
+
+    ionq_backend_name = os.environ.get("IONQ_BACKEND", "simulator")
+
+    try:
+        from qiskit_ionq import IonQProvider
+    except ImportError:
+        pytest.skip("qiskit-ionq not installed: pip install qiskit-ionq")
+
+    try:
+        provider = IonQProvider(api_key)
+        return provider.get_backend(ionq_backend_name)
+    except Exception as exc:
+        pytest.skip(f"IonQ connection failed: {exc}")
+
+
+@pytest.fixture(scope="session")
+def quantinuum_backend(request: pytest.FixtureRequest) -> Any:
+    """Real Quantinuum quantum backend via pytket-quantinuum.
+
+    Requires:
+        - --quantum-real CLI flag
+        - QUANTINUUM_USERNAME and QUANTINUUM_PASSWORD environment variables
+        - Optional: QUANTINUUM_DEVICE env var (default "H1-1E" emulator)
+
+    Example::
+
+        def test_on_quantinuum(quantinuum_backend):
+            ...
+    """
+    if not request.config.getoption("--quantum-real", default=False):
+        pytest.skip("--quantum-real not set")
+
+    username = os.environ.get("QUANTINUUM_USERNAME", "")
+    password = os.environ.get("QUANTINUUM_PASSWORD", "")
+    if not username or not password:
+        pytest.skip(
+            "QUANTINUUM_USERNAME and QUANTINUUM_PASSWORD must both be set.\n"
+            "  export QUANTINUUM_USERNAME=<your-email>\n"
+            "  export QUANTINUUM_PASSWORD=<your-password>\n"
+            "Register at https://um.qapi.quantinuum.com"
+        )
+
+    device_name = os.environ.get("QUANTINUUM_DEVICE", "H1-1E")
+
+    try:
+        from pytket.extensions.quantinuum import QuantinuumBackend
+    except ImportError:
+        pytest.skip(
+            "pytket-quantinuum not installed: pip install pytket-quantinuum"
+        )
+
+    try:
+        backend = QuantinuumBackend(
+            device_name=device_name,
+            username=username,
+            password=password,
+        )
+        return backend
+    except Exception as exc:
+        pytest.skip(f"Quantinuum connection failed: {exc}")
+
+
+@pytest.fixture(scope="session")
+def quantum_hardware_info(request: pytest.FixtureRequest) -> dict[str, Any]:
+    """Returns info about configured real hardware backends.
+
+    Checks environment variables to determine which cloud backends have
+    credentials configured.  Does **not** attempt a live connection.
+
+    Returns a dict with keys:
+        - ``"ibm_available"``        — True if IBM_QUANTUM_TOKEN is set
+        - ``"ionq_available"``       — True if IONQ_API_KEY is set
+        - ``"quantinuum_available"`` — True if both QUANTINUUM_USERNAME and
+          QUANTINUUM_PASSWORD are set
+        - ``"aws_available"``        — True if BRAKET_DEVICE_ARN is set
+
+    Example::
+
+        def test_info(quantum_hardware_info):
+            info = quantum_hardware_info
+            assert isinstance(info["ibm_available"], bool)
+    """
+    return {
+        "ibm_available": bool(os.environ.get("IBM_QUANTUM_TOKEN", "")),
+        "ionq_available": bool(os.environ.get("IONQ_API_KEY", "")),
+        "quantinuum_available": (
+            bool(os.environ.get("QUANTINUUM_USERNAME", ""))
+            and bool(os.environ.get("QUANTINUUM_PASSWORD", ""))
+        ),
+        "aws_available": bool(os.environ.get("BRAKET_DEVICE_ARN", "")),
+    }
+
+
+@pytest.fixture(scope="session")
 def braket_cloud_device(request: pytest.FixtureRequest) -> Any:
     """AWS Braket cloud quantum device (session-scoped).
 

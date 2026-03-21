@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-quantum"
-version = "0.4.0"
+version = "0.5.0"
 description = "A cross-framework pytest plugin for quantum program testing"
 readme = "README.md"
 license = "MIT"
@@ -37,6 +37,7 @@ dependencies = [
     "pytest>=8.0",
     "numpy>=2.0",
     "scipy>=1.13",
+    "qiskit-ibm-runtime>=0.45.1",
 ]
 
 [project.optional-dependencies]

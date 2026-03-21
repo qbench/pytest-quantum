@@ -259,3 +259,206 @@ def assert_mitigation_improves_fidelity(
         f"  Hint: verify that mitigation was applied correctly and that the "
         f"noise model is consistent with the mitigated channel."
     )
+
+
+def assert_pec_reduces_error(
+    circuit: object,
+    executor: Callable[..., float],
+    noise_model: object,
+    *,
+    num_samples: int = 100,
+    threshold_improvement: float = 0.0,
+) -> tuple[float, float]:
+    """Assert that Probabilistic Error Cancellation (PEC) produces a valid result.
+
+    Runs the circuit with and without PEC and returns both values.
+
+    Args:
+        circuit:               Quantum circuit.
+        executor:              Callable(circuit) -> float for noisy execution.
+        noise_model:           PEC representations (quasi-probability representations).
+        num_samples:           Number of PEC samples (default 100).
+        threshold_improvement: Unused threshold parameter (reserved for future use).
+
+    Returns:
+        Tuple of (unmitigated_value, mitigated_value).
+
+    Raises:
+        ImportError:    If mitiq is not installed.
+        AssertionError: If PEC does not return a valid float.
+
+    Example::
+
+        from pytest_quantum import assert_pec_reduces_error
+
+        unmitigated, mitigated = assert_pec_reduces_error(
+            circuit, noisy_executor, representations
+        )
+    """
+    try:
+        import mitiq  # noqa: F401
+        from mitiq import pec
+    except ImportError as exc:
+        raise ImportError(
+            "mitiq is required for PEC assertions. Install it with: pip install mitiq"
+        ) from exc
+
+    unmitigated = executor(circuit)
+
+    mitigated = pec.execute_with_pec(
+        circuit,
+        executor,
+        representations=noise_model,
+        num_samples=num_samples,
+    )
+
+    if not isinstance(float(mitigated), float):
+        raise AssertionError(
+            f"PEC did not return a valid float. Got: {mitigated!r}"
+        )
+
+    return float(unmitigated), float(mitigated)
+
+
+def assert_pec_expectation_close(
+    circuit: object,
+    executor: Callable[..., float],
+    noise_model: object,
+    expected: float,
+    *,
+    num_samples: int = 100,
+    atol: float = 0.1,
+) -> None:
+    """Assert PEC-mitigated expectation value is close to expected.
+
+    Args:
+        circuit:     Quantum circuit.
+        executor:    Callable(circuit) -> float.
+        noise_model: PEC representations.
+        expected:    Expected ideal expectation value.
+        num_samples: Number of PEC samples (default 100).
+        atol:        Absolute tolerance (default 0.1).
+
+    Raises:
+        AssertionError: If mitigated value differs from expected by more than atol.
+        ImportError:    If mitiq is not installed.
+
+    Example::
+
+        from pytest_quantum import assert_pec_expectation_close
+
+        assert_pec_expectation_close(
+            circuit, noisy_executor, representations, expected=1.0, atol=0.05
+        )
+    """
+    try:
+        import mitiq  # noqa: F401
+        from mitiq import pec
+    except ImportError as exc:
+        raise ImportError(
+            "mitiq is required for PEC assertions. Install it with: pip install mitiq"
+        ) from exc
+
+    mitigated = float(
+        pec.execute_with_pec(
+            circuit,
+            executor,
+            representations=noise_model,
+            num_samples=num_samples,
+        )
+    )
+    unmitigated = float(executor(circuit))
+
+    if abs(mitigated - expected) <= atol:
+        return
+
+    raise AssertionError(
+        f"PEC-mitigated expectation value {mitigated:.4f} differs from expected "
+        f"{expected:.4f} by {abs(mitigated - expected):.4f} (tolerance: {atol:.4f}).\n"
+        f"  Unmitigated value : {unmitigated:.4f}\n"
+        f"  Mitigated value   : {mitigated:.4f}\n"
+        f"  Expected          : {expected:.4f}\n"
+        f"  Hint: try increasing num_samples or refining the noise representations."
+    )
+
+
+def assert_error_mitigation_benchmark(
+    circuit: object,
+    ideal_executor: Callable[..., float],
+    noisy_executor: Callable[..., float],
+    *,
+    methods: list[str] | None = None,
+    atol: float = 0.1,
+) -> dict[str, float]:
+    """Benchmark multiple ZNE mitigation methods against the ideal value.
+
+    Runs ZNE with each specified method and asserts all methods achieve
+    results within atol of the ideal value.
+
+    Args:
+        circuit:        Quantum circuit.
+        ideal_executor: Callable(circuit) -> float for ideal (noiseless) execution.
+        noisy_executor: Callable(circuit) -> float for noisy execution.
+        methods:        List of method names to benchmark. Supported values:
+                        "zne_richardson", "zne_linear". Defaults to both.
+        atol:           Absolute tolerance from ideal value (default 0.1).
+
+    Returns:
+        Dict mapping method_name -> mitigated_value.
+
+    Raises:
+        ImportError:    If mitiq is not installed.
+        AssertionError: If any method exceeds atol from the ideal value.
+
+    Example::
+
+        from pytest_quantum import assert_error_mitigation_benchmark
+
+        results = assert_error_mitigation_benchmark(
+            circuit, ideal_executor, noisy_executor, atol=0.05
+        )
+    """
+    try:
+        import mitiq  # noqa: F401
+        from mitiq import zne
+    except ImportError as exc:
+        raise ImportError(
+            "mitiq is required for benchmarking. Install it with: pip install mitiq"
+        ) from exc
+
+    if methods is None:
+        methods = ["zne_richardson", "zne_linear"]
+
+    scale_factors = [1.0, 2.0, 3.0]
+    ideal = float(ideal_executor(circuit))
+    results: dict[str, float] = {}
+
+    for method in methods:
+        if method == "zne_linear":
+            factory = zne.LinearFactory(scale_factors)
+        else:
+            # Default: zne_richardson (and any unknown method falls back here)
+            factory = zne.RichardsonFactory(scale_factors)
+
+        mitigated = float(zne.execute_with_zne(circuit, noisy_executor, factory=factory))
+        results[method] = mitigated
+
+    failed = {
+        name: val
+        for name, val in results.items()
+        if abs(val - ideal) > atol
+    }
+
+    if failed:
+        lines = [
+            f"Error mitigation benchmark failed: {len(failed)} method(s) exceeded "
+            f"atol={atol:.4f} from ideal={ideal:.4f}:"
+        ]
+        for name, val in failed.items():
+            lines.append(
+                f"  {name}: mitigated={val:.4f}, "
+                f"|mitigated - ideal|={abs(val - ideal):.4f}"
+            )
+        raise AssertionError("\n".join(lines))
+
+    return results
