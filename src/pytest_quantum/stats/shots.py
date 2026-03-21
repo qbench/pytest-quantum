@@ -100,6 +100,8 @@ def recommended_shots(
     """
     nonzero = [p for p in expected_probs.values() if p > 0]
     if not nonzero:
-        raise ValueError("expected_probs must contain at least one nonzero probability.")
+        raise ValueError(
+            "expected_probs must contain at least one nonzero probability."
+        )
     min_prob = min(nonzero)
     return math.ceil(min_expected_per_bucket / min_prob)

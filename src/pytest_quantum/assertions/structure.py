@@ -36,8 +36,10 @@ def assert_circuit_depth(
 
         def test_circuit_depth():
             from qiskit import QuantumCircuit
+
             qc = QuantumCircuit(2)
-            qc.h(0); qc.cx(0, 1)
+            qc.h(0)
+            qc.cx(0, 1)
             assert_circuit_depth(qc, max_depth=3)
     """
     if max_depth is None and min_depth is None:
@@ -46,13 +48,9 @@ def assert_circuit_depth(
     depth = _get_depth(circuit)
 
     if max_depth is not None and depth > max_depth:
-        raise AssertionError(
-            f"Circuit depth {depth} exceeds max_depth {max_depth}."
-        )
+        raise AssertionError(f"Circuit depth {depth} exceeds max_depth {max_depth}.")
     if min_depth is not None and depth < min_depth:
-        raise AssertionError(
-            f"Circuit depth {depth} is below min_depth {min_depth}."
-        )
+        raise AssertionError(f"Circuit depth {depth} is below min_depth {min_depth}.")
 
 
 def assert_circuit_width(
@@ -75,8 +73,11 @@ def assert_circuit_width(
 
         def test_circuit_width():
             from qiskit import QuantumCircuit
+
             qc = QuantumCircuit(3)
-            qc.h(0); qc.cx(0, 1); qc.cx(1, 2)
+            qc.h(0)
+            qc.cx(0, 1)
+            qc.cx(1, 2)
             assert_circuit_width(qc, expected_qubits=3)
     """
     actual = _get_width(circuit)
@@ -112,8 +113,11 @@ def assert_gate_count(
 
         def test_t_count():
             from qiskit import QuantumCircuit
+
             qc = QuantumCircuit(2)
-            qc.t(0); qc.t(1); qc.cx(0, 1)
+            qc.t(0)
+            qc.t(1)
+            qc.cx(0, 1)
             assert_gate_count(qc, "t", 2)
             assert_gate_count(qc, "cx", 1)
     """
@@ -142,9 +146,7 @@ def assert_gate_count(
         try:
             tape = c.tape  # works if QNode has been called at least once
             actual = sum(
-                1
-                for op in tape.operations
-                if type(op).__name__.lower() == name_lower
+                1 for op in tape.operations if type(op).__name__.lower() == name_lower
             )
         except AttributeError as exc:
             raise TypeError(

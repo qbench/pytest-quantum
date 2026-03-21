@@ -47,8 +47,10 @@ def assert_state_fidelity_above(
 
         BELL = np.array([1, 0, 0, 1], dtype=complex) / np.sqrt(2)
 
+
         def test_bell_graphix(graphix_backend):
             from graphix.transpiler import Circuit
+
             circuit = Circuit(2)
             circuit.h(0)
             circuit.cnot(0, 1)
@@ -90,6 +92,7 @@ def assert_states_close(
 
         def test_plus_state(aer_statevector_simulator):
             from qiskit import QuantumCircuit, transpile
+
             qc = QuantumCircuit(1)
             qc.h(0)
             qc.save_statevector()
