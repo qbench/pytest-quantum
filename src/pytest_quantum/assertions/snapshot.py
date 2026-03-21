@@ -151,10 +151,10 @@ def _write_snapshot_safe(path: Path, data: object) -> None:
 
         lock = filelock.FileLock(str(lock_path), timeout=10)
         with lock:
-            np.save(str(path), cast(Any, data))
+            np.save(str(path), cast("Any", data))
     except ImportError:
         # filelock not installed — just write directly (acceptable for single-worker)
-        np.save(str(path), cast(Any, data))
+        np.save(str(path), cast("Any", data))
 
 
 def _path(name: str, suffix: str) -> Path:

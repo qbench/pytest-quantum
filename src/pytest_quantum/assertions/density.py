@@ -257,5 +257,7 @@ def _partial_trace(
     reduced = np.einsum(input_str + "->" + output_str, rho_tensor)
 
     d_keep = 2 ** len(keep)
-    out: NDArray[np.complex128] = np.asarray(reduced, dtype=np.complex128).reshape(d_keep, d_keep)
+    out: NDArray[np.complex128] = np.asarray(reduced, dtype=np.complex128).reshape(
+        d_keep, d_keep
+    )
     return out
