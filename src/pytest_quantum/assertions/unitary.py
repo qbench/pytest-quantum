@@ -10,7 +10,12 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
-from pytest_quantum.converters.to_unitary import to_unitary
+from pytest_quantum.converters.to_unitary import (
+    _is_cirq,
+    _is_pytket,
+    _is_qiskit,
+    to_unitary,
+)
 
 if TYPE_CHECKING:
     from numpy.typing import NDArray
@@ -149,17 +154,15 @@ def assert_circuits_equivalent(
     u_b = to_unitary(circuit_b)
 
     # Normalize qubit ordering for cross-framework comparison.
-    # Qiskit = little-endian, Cirq = big-endian.
-    is_qiskit_a = type_a.startswith("qiskit")
-    is_cirq_b = type_b.startswith("cirq")
-    is_cirq_a = type_a.startswith("cirq")
-    is_qiskit_b = type_b.startswith("qiskit")
+    # Qiskit = little-endian, Cirq = big-endian, Pytket = big-endian.
+    big_endian_a = _is_cirq(circuit_a) or _is_pytket(circuit_a)
+    big_endian_b = _is_cirq(circuit_b) or _is_pytket(circuit_b)
 
     from pytest_quantum.converters.to_unitary import _reverse_qubit_order
 
-    if is_qiskit_a and is_cirq_b:
+    if _is_qiskit(circuit_a) and big_endian_b:
         u_a = _reverse_qubit_order(u_a)
-    elif is_cirq_a and is_qiskit_b:
+    elif big_endian_a and _is_qiskit(circuit_b):
         u_b = _reverse_qubit_order(u_b)
 
     if u_a.shape != u_b.shape:

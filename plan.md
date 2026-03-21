@@ -1,242 +1,118 @@
-# pytest-quantum v0.2.0 — Plan
+# pytest-quantum v0.3.0 — Plan
 
-## Where We Are (v0.1.1)
+## What v0.2.0 Delivered
 
-Live on PyPI. 38 tests passing from a fresh install. Core plugin works.
-Framework support is uneven — some assertions silently don't apply to certain
-frameworks, CLI options are registered but not wired up, and cross-framework
-multi-qubit comparison is broken due to qubit ordering.
+v0.2.0 fixed several broken behaviors and added four major feature areas:
 
----
-
-## What v0.2.0 Must Solve
-
-### 1. Broken / Incomplete Things (must fix)
-
-**A. `--quantum-shots` and `--quantum-significance` are no-ops**
-The CLI options are registered but the fixtures ignore them entirely.
-Users who pass `--quantum-shots 4000` see zero effect.
-
-Fix: read `config.getoption("quantum_shots")` inside each fixture's factory
-and pass it to `shots=` when running circuits. Read `quantum_significance`
-inside `assert_measurement_distribution` via the pytest request object.
-
-**B. Cirq has no shot-based simulation**
-`assert_measurement_distribution` and `assert_counts_close` raise TypeError
-on Cirq circuits. But Cirq *does* support shot simulation via
-`cirq.Simulator().run(circuit, repetitions=N)` — we just never wired it.
-
-Fix: add a `cirq_sampler` fixture (distinct from `cirq_simulator`) that
-wraps `cirq.Simulator().run()` and returns count dicts. Then
-`assert_measurement_distribution` works on Cirq too.
-
-**C. Braket has no gate count support**
-`assert_gate_count` raises NotImplementedError for Braket circuits.
-Braket circuits do expose `circuit.instructions` which is iterable.
-
-Fix: iterate `circuit.instructions`, match `instruction.operator.name`
-case-insensitively.
-
-**D. PennyLane has no circuit depth**
-`assert_circuit_depth` raises TypeError for PennyLane QNodes.
-PennyLane exposes `qml.specs(qnode)()["depth"]` after execution.
-
-Fix: call `qml.specs(circuit)()["depth"]` in `_get_depth()`.
-
-**E. PennyLane gate count requires prior execution**
-`assert_gate_count` requires the QNode tape to exist, which means the user
-must call the circuit before asserting. This is surprising and undocumented.
-
-Fix: execute the circuit with a dry-run (zero shots) to populate the tape
-automatically, then count. No longer requires prior execution.
-
-**F. Cross-framework multi-qubit comparison is wrong**
-Qiskit uses little-endian qubit ordering, Cirq uses big-endian.
-A CNOT in Qiskit produces a different 4×4 matrix than a CNOT in Cirq.
-Currently `assert_circuits_equivalent` gives wrong results silently.
-
-Fix: detect when comparing across frameworks, apply qubit reversal
-permutation to one matrix before comparing. Add `qubit_order` parameter
-to `to_unitary()` so callers can request `"big_endian"` or `"little_endian"`.
+- **Bug fixes**: Wired `--quantum-shots` and `--quantum-significance` CLI flags,
+  fixed Cirq shot simulation (added `cirq_sampler` fixture), fixed Braket
+  `assert_gate_count`, fixed PennyLane `assert_circuit_depth` and gate count
+  (no prior execution required), fixed cross-framework multi-qubit unitary
+  comparison (Qiskit little-endian ↔ Cirq big-endian qubit ordering).
+- **Density matrix assertions**: `assert_density_matrix_close`,
+  `assert_trace_distance_below`, `assert_purity_above`, `assert_partial_trace_close`.
+- **Expectation value assertions**: `assert_expectation_value_close`,
+  `assert_ground_state_energy_close`.
+- **Snapshot / golden file testing**: `assert_unitary_snapshot`,
+  `assert_distribution_snapshot`, `--quantum-update-snapshots` CLI flag.
+- **Qiskit Primitives**: `qiskit_sampler`, `qiskit_estimator` fixtures,
+  `assert_sampler_distribution`, `assert_estimator_close` assertions.
+- **Clifford circuit check**: `assert_circuit_is_clifford` (Qiskit + Cirq).
+- **Improved assertion messages** for `QuantumCircuit` and count dict comparisons.
 
 ---
 
-### 2. New Features
+## What v0.3.0 Adds
 
-**A. Density Matrix Assertions** — most important new module
+### 1. Quantum Channel / Operator Assertions (pure numpy)
 
-Noisy quantum computing produces mixed states (density matrices), not
-statevectors. Every noise test and open-system simulation needs this.
-Currently there is no way to test density matrix outputs.
-
-New module: `assertions/density.py`
+New module `assertions/channels.py`:
 
 ```python
-assert_density_matrix_close(rho, sigma, atol=1e-6)
-  # element-wise comparison after global phase alignment
-
-assert_trace_distance_below(rho, sigma, max_distance=0.01)
-  # T(ρ,σ) = 0.5 * Tr(|ρ-σ|), measures distinguishability
-
-assert_purity_above(rho, min_purity=0.95)
-  # Tr(ρ²) ≥ min_purity (1.0 = pure state, 1/d = maximally mixed)
-
-assert_partial_trace_close(rho, target_subsystem, expected_rho, atol=1e-6)
-  # Trace out subsystem, compare reduced density matrix
+assert_hermitian(matrix, *, atol=1e-8)
+assert_positive_semidefinite(matrix, *, atol=1e-8)
+assert_commutes_with(op_a, op_b, *, atol=1e-8)
+assert_channel_is_cptp(kraus_ops, *, atol=1e-8)
+assert_process_fidelity_above(channel_a, channel_b, threshold=0.99, *, atol=1e-8)
+assert_noise_fidelity_above(noisy_dm, ideal_state, threshold=0.99)
 ```
 
-Why this matters: every `aer_noise_simulator` test produces density matrices.
-The current assertion suite has no way to inspect them.
+No quantum SDK required. Supports Qiskit `process_fidelity` delegation for
+Qiskit channel objects.
 
-**B. Expectation Value Assertions** — essential for VQE / QAOA users
+### 2. Entanglement Assertions (pure numpy)
 
-The single most common quantum chemistry and optimization test is:
-"does my variational circuit produce the right expectation value?"
-Currently there is no assertion for this.
-
-New module: `assertions/observables.py`
+New module `assertions/entanglement.py`:
 
 ```python
-assert_expectation_value_close(circuit, observable, expected, atol=0.1,
-                                shots=None, backend=None)
-  # Runs circuit, measures <observable>, checks |result - expected| <= atol
-  # observable: numpy matrix, Qiskit SparsePauliOp, PennyLane Hamiltonian, etc.
-
-assert_ground_state_energy_close(circuit, hamiltonian, expected_energy,
-                                  atol=0.1)
-  # Convenience: checks VQE convergence to known ground state energy
+assert_entanglement_entropy_below(statevector, partition, max_entropy, *, n_qubits=None)
+assert_bloch_sphere_close(statevector, expected_theta, expected_phi, *, atol=0.1)
+assert_schmidt_rank_at_most(statevector, partition, max_rank, *, n_qubits=None, tol=1e-10)
 ```
 
-Why this matters: VQE, QAOA, and quantum chemistry are the biggest quantum
-computing use cases. These researchers have NO good way to write regression
-tests today.
+Uses `_partial_trace` from `assertions/density.py`.
 
-**C. Snapshot / Golden File Testing** — killer feature for compiler testing
+### 3. Information-Theoretic Distribution Assertions (pure numpy)
 
-The biggest pain in quantum compiler development: after a compiler pass,
-"did the circuit's behavior change?" Currently developers manually inspect
-matrices or counts after every change.
-
-New module: `assertions/snapshot.py`
+New module `assertions/information.py`:
 
 ```python
-assert_unitary_snapshot(circuit, name, *, update=False, atol=1e-6)
-  # First run: saves circuit unitary to .pytest-quantum-snapshots/<name>.npy
-  # Subsequent runs: loads and compares — fails if circuit changed
-  # --quantum-update-snapshots flag: regenerates all snapshots
-
-assert_distribution_snapshot(counts, name, *, update=False, max_tvd=0.05)
-  # Same idea but for shot distributions
+assert_hellinger_close(counts_a, counts_b, *, max_distance=0.1)
+assert_kl_divergence_below(counts, expected_probs, *, max_kl=0.1)
+assert_cross_entropy_below(counts, expected_probs, *, max_ce=1.0)
 ```
 
-Why this matters: this is what `syrupy` does for object snapshots and
-`pytest-regressions` does for data — but neither understands quantum circuits.
-Compiler teams would use this for every PR.
+### 4. OpenQASM Round-Trip Assertions
 
-CLI additions:
-- `--quantum-update-snapshots` — regenerate all snapshot files
-
-**D. Qiskit Primitives Support** — Qiskit's modern execution model
-
-Qiskit 1.0+ moved to Sampler/Estimator primitives. The old
-`backend.run()` API still works but the community is moving to primitives.
-We have no assertion support for primitive results.
-
-New fixtures:
-```python
-@pytest.fixture(scope="session")
-def qiskit_sampler():
-    from qiskit.primitives import StatevectorSampler
-    return StatevectorSampler()
-
-@pytest.fixture(scope="session")
-def qiskit_estimator():
-    from qiskit.primitives import StatevectorEstimator
-    return StatevectorEstimator()
-```
-
-New assertions:
-```python
-assert_sampler_distribution(sampler_result, pub_idx=0,
-                             expected_probs=..., significance=0.05)
-assert_estimator_close(estimator_result, expected_value, atol=0.1)
-```
-
-**E. Improved Failure Messages** — developer experience
-
-Currently only numpy array `==` comparisons get improved messages.
-Most framework objects (QuantumCircuit, cirq.Circuit) get generic diffs.
-
-Add `pytest_assertrepr_compare` branches for:
-- Qiskit `QuantumCircuit` — show circuit diagram side by side
-- `dict` counts comparisons — show TVD and per-key difference table
-- numpy arrays with `<` / `>` — show actual vs expected with tolerance
-
-**F. `assert_circuit_is_clifford(circuit)`** — fault-tolerance research
-
-Clifford circuits (H, S, CNOT gates only) are efficiently simulable and
-form the basis of error correction research. Researchers need to verify
-their circuits stay within the Clifford group after compilation.
+New module `assertions/qasm.py`:
 
 ```python
-assert_circuit_is_clifford(circuit)
-  # Verifies circuit only uses Clifford gates
-  # Supported: Qiskit (via qiskit.synthesis.clifford), Cirq
+assert_qasm_roundtrip(circuit, *, atol=1e-6, allow_global_phase=True)
 ```
 
----
+Supports Qiskit (via `qiskit.qasm3`) and Cirq (via `cirq.contrib.qasm_import`).
 
-### 3. Infrastructure
+### 5. Pytket Framework Support
 
-**A. Add `conftest.py` snapshot directory to `.gitignore`**
-Snapshot files should be committed (they're the ground truth), but the
-directory structure needs to be consistent.
+- `converters/to_unitary.py`: `_from_pytket()`, `_is_pytket()` helper.
+- `assertions/structure.py`: Pytket depth, width, gate count, Clifford check.
+- `assertions/unitary.py`: Pytket big-endian qubit ordering (same as Cirq).
+- Cross-framework `assert_circuits_equivalent` for Pytket ↔ Qiskit.
 
-**B. Add `--quantum-update-snapshots` to CLI options**
+### 6. Expanded Clifford Support
 
-**C. Bump Python minimum to 3.11** — already done, keep it.
+`assert_circuit_is_clifford` now supports:
+- **Amazon Braket** — checks against `_CLIFFORD_BRAKET` gate set.
+- **PennyLane** — checks tape operations against `_CLIFFORD_PENNYLANE`.
+- **Pytket** — delegates to `pytket.tableau.UnitaryTableau`.
 
-**D. Add `py.typed` marker** — make the package PEP 561 compliant for
-downstream mypy users.
+### 7. New Fixtures (plugin.py)
 
-**E. Parallel test support with `pytest-xdist`**
-Session-scoped fixtures need to be safe under `pytest-xdist` parallel
-execution. Add `scope="session"` lock or document incompatibility.
+```python
+pytket_circuit_factory  # returns pytket.circuit.Circuit class
+stim_sampler            # stim stabilizer circuit sampler → count dict
+quantum_benchmark       # wraps pytest-benchmark or simple timer
+shot_budget             # ShotBudget class to track shots per test
+```
 
----
+### 8. Enhanced Assertion Reporter
 
-## v0.2.0 Scope (what we actually build)
+`pytest_assertrepr_compare` now handles:
+- Qiskit `QuantumCircuit` — shows circuit diagrams side-by-side.
+- `dict` count distributions — shows TVD and per-key probability diff table.
+- `numpy.ndarray` (original) — fidelity and max-diff.
 
-In priority order — stop when scope is too large:
+### 9. New `quantum_backends` Marker
 
-| Priority | Feature | Effort | Impact |
-|----------|---------|--------|--------|
-| 1 | Wire `--quantum-shots` / `--quantum-significance` to fixtures | Small | High |
-| 2 | Fix Cirq shot simulation (`cirq_sampler` fixture) | Small | High |
-| 3 | Fix Braket `assert_gate_count` | Small | Medium |
-| 4 | Fix PennyLane `assert_circuit_depth` | Small | Medium |
-| 5 | Fix PennyLane gate count (no prior execution required) | Small | Medium |
-| 6 | Fix cross-framework qubit ordering | Medium | High |
-| 7 | Density matrix assertions | Medium | High |
-| 8 | Expectation value assertions | Medium | High |
-| 9 | Snapshot / golden file testing | Medium | Very High |
-| 10 | Qiskit Primitives fixtures + assertions | Medium | High |
-| 11 | Improved failure messages | Small | Medium |
-| 12 | `assert_circuit_is_clifford` | Small | Medium |
-| 13 | `py.typed` marker | Tiny | Low |
+```python
+@pytest.mark.quantum_backends(backends)
+```
 
-All 13 items are in scope for v0.2.0.
+### 10. Updated pyproject.toml
 
----
-
-## What v0.3.0 Gets (not now)
-
-- IBM Quantum real hardware fixture (`ibm_backend`, `--quantum-real`)
-- AWS Braket cloud device fixture
-- QuTiP support (density matrix evolution, Lindblad master equation)
-- Tequila support (quantum chemistry)
-- OpenQASM round-trip assertions
-- `pytest-xdist` compatibility
+- Version bumped to `0.3.0`.
+- New optional deps: `pytket = ["pytket>=1.30"]`, `stim = ["stim>=1.13"]`.
+- Both added to `all` group and `dev` group.
 
 ---
 
@@ -244,69 +120,93 @@ All 13 items are in scope for v0.2.0.
 
 ### New files
 ```
-src/pytest_quantum/assertions/density.py
-src/pytest_quantum/assertions/observables.py
-src/pytest_quantum/assertions/snapshot.py
-tests/test_assertions_density.py
-tests/test_assertions_observables.py
-tests/test_assertions_snapshot.py
-tests/test_integration_cirq_shots.py
-tests/test_integration_primitives.py
+src/pytest_quantum/assertions/channels.py
+src/pytest_quantum/assertions/entanglement.py
+src/pytest_quantum/assertions/information.py
+src/pytest_quantum/assertions/qasm.py
+tests/test_assertions_channels.py
+tests/test_assertions_entanglement.py
+tests/test_assertions_information.py
+tests/test_integration_braket.py
+tests/test_integration_pytket.py
+tests/test_integration_stim.py
 ```
 
 ### Modified files
 ```
-src/pytest_quantum/__init__.py            — new exports
-src/pytest_quantum/plugin.py             — wire CLI opts, new fixtures, new CLI flag
-src/pytest_quantum/assertions/structure.py — PL depth, Braket gate count, PL auto-tape
-src/pytest_quantum/converters/to_unitary.py — qubit ordering parameter
-src/pytest_quantum/assertions/unitary.py    — use new qubit ordering
-pyproject.toml                           — bump to 0.2.0, add py.typed
+src/pytest_quantum/__init__.py        — version 0.3.0, new exports, new assert_rewrite calls
+src/pytest_quantum/plugin.py          — new fixtures, enhanced assertrepr_compare, new marker
+src/pytest_quantum/assertions/structure.py  — Pytket + Braket + PennyLane Clifford
+src/pytest_quantum/assertions/unitary.py    — Pytket qubit ordering
+src/pytest_quantum/converters/to_unitary.py — _from_pytket(), _is_pytket()
+pyproject.toml                        — version 0.3.0, pytket/stim deps
+tests/test_plugin.py                  — version string updated to 0.3.0
 ```
 
 ---
 
-## Public API After v0.2.0
+## Public API After v0.3.0
 
 ```python
 from pytest_quantum import (
-    # Unitary (unchanged)
+    # Unitary
     assert_unitary,
     assert_circuits_equivalent,
 
-    # States (unchanged)
+    # States
     assert_state_fidelity_above,
     assert_states_close,
 
-    # Density matrices (NEW)
+    # Density matrices (v0.2.0)
     assert_density_matrix_close,
     assert_trace_distance_below,
     assert_purity_above,
     assert_partial_trace_close,
 
-    # Observables / expectation values (NEW)
+    # Observables (v0.2.0)
     assert_expectation_value_close,
     assert_ground_state_energy_close,
 
-    # Distributions (unchanged)
+    # Distributions
     assert_measurement_distribution,
     assert_counts_close,
 
-    # Primitives (NEW)
+    # Primitives (v0.2.0)
     assert_sampler_distribution,
     assert_estimator_close,
 
-    # Structure (unchanged API, wider framework support)
+    # Structure
     assert_circuit_depth,
     assert_circuit_width,
     assert_gate_count,
-    assert_circuit_is_clifford,   # NEW
+    assert_circuit_is_clifford,
 
-    # Snapshots (NEW)
+    # Snapshots (v0.2.0)
     assert_unitary_snapshot,
     assert_distribution_snapshot,
 
-    # Stats (unchanged)
+    # Channels / operators (v0.3.0)
+    assert_hermitian,
+    assert_positive_semidefinite,
+    assert_commutes_with,
+    assert_channel_is_cptp,
+    assert_process_fidelity_above,
+    assert_noise_fidelity_above,
+
+    # Entanglement (v0.3.0)
+    assert_entanglement_entropy_below,
+    assert_bloch_sphere_close,
+    assert_schmidt_rank_at_most,
+
+    # Information theory (v0.3.0)
+    assert_hellinger_close,
+    assert_kl_divergence_below,
+    assert_cross_entropy_below,
+
+    # QASM round-trip (v0.3.0)
+    assert_qasm_roundtrip,
+
+    # Stats
     min_shots,
     recommended_shots,
     fidelity,
@@ -316,30 +216,46 @@ from pytest_quantum import (
 )
 ```
 
-New fixtures:
+Fixtures:
 ```
-cirq_sampler           — Cirq shot-based simulation
-qiskit_sampler         — Qiskit StatevectorSampler (primitives)
-qiskit_estimator       — Qiskit StatevectorEstimator (primitives)
+aer_simulator              — Qiskit AerSimulator (shots)
+aer_statevector_simulator  — Qiskit AerSimulator (statevector)
+aer_noise_simulator        — factory: make_simulator(error_rate)
+qiskit_sampler             — Qiskit StatevectorSampler (primitives)
+qiskit_estimator           — Qiskit StatevectorEstimator (primitives)
+cirq_simulator             — cirq.Simulator
+cirq_sampler               — Cirq shot sampler → count dict
+braket_simulator           — Braket LocalSimulator
+graphix_backend            — graphix pattern runner
+pennylane_device           — factory: make_device(wires, shots=None)
+pytket_circuit_factory     — pytket.circuit.Circuit class (v0.3.0)
+stim_sampler               — stim circuit sampler → count dict (v0.3.0)
+quantum_benchmark          — benchmark wrapper (v0.3.0)
+shot_budget                — ShotBudget class (v0.3.0)
+quantum_shots              — --quantum-shots CLI value
+quantum_significance       — --quantum-significance CLI value
 ```
 
-New markers:
+Markers:
 ```
-@pytest.mark.quantum_snapshot   — marks snapshot tests (for selective update)
+@pytest.mark.quantum            — generic quantum test
+@pytest.mark.quantum_slow       — skipped unless --quantum-slow
+@pytest.mark.quantum_snapshot   — snapshot tests
+@pytest.mark.quantum_backends   — specify target backends (v0.3.0)
+@pytest.mark.shots(n)           — override shot count
+@pytest.mark.significance(p)    — override p-value threshold
 ```
 
-New CLI options:
+CLI options:
 ```
---quantum-update-snapshots   — regenerate all snapshot golden files
+--quantum-slow              — run quantum_slow tests
+--quantum-shots N           — override default shot count
+--quantum-significance P    — override default p-value threshold
+--quantum-update-snapshots  — regenerate snapshot golden files
 ```
 
 ---
 
 ## Version Bump
 
-`pyproject.toml`: `version = "0.1.1"` → `version = "0.2.0"`
-
-Release command (once all tests pass):
-```bash
-./release.sh 0.2.0
-```
+`pyproject.toml`: `version = "0.2.0"` → `version = "0.3.0"`

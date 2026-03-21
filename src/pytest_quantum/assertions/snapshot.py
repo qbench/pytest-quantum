@@ -124,7 +124,9 @@ def assert_distribution_snapshot(
     raw = np.load(str(path), allow_pickle=True)
     snap_keys = list(raw[0])
     snap_vals = [float(v) for v in raw[1]]
-    snap_counts = {k: round(v * 10000) for k, v in zip(snap_keys, snap_vals, strict=False)}
+    snap_counts = {
+        k: round(v * 10000) for k, v in zip(snap_keys, snap_vals, strict=False)
+    }
     current_counts = {k: round(v * 10000) for k, v in probs.items()}
     distance = tvd_from_counts(current_counts, snap_counts)
     if distance <= max_tvd:

@@ -80,6 +80,10 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "quantum_snapshot: marks snapshot tests (for selective update).",
     )
+    config.addinivalue_line(
+        "markers",
+        "quantum_backends(backends): run test on specified backends.",
+    )
     # Set env var so snapshot helpers can detect the update flag without
     # needing access to the pytest config object.
     try:
@@ -120,7 +124,54 @@ def pytest_assertrepr_compare(
     left: object,
     right: object,
 ) -> list[str] | None:
-    """Improved failure messages for numpy array comparisons in quantum tests."""
+    """Enhanced assertion messages for quantum objects."""
+    # Qiskit QuantumCircuit comparison
+    try:
+        from qiskit import QuantumCircuit
+
+        if isinstance(left, QuantumCircuit) and isinstance(right, QuantumCircuit):
+            lines: list[str] = [f"QuantumCircuit {op} QuantumCircuit"]
+            lines.append("Left circuit:")
+            lines.extend(f"  {ln}" for ln in str(left.draw("text")).splitlines())
+            lines.append("Right circuit:")
+            lines.extend(f"  {ln}" for ln in str(right.draw("text")).splitlines())
+            return lines
+    except ImportError:
+        pass
+
+    # Count dict comparison
+    if isinstance(left, dict) and isinstance(right, dict):
+        combined: dict[str, object] = {**left, **right}
+        if all(isinstance(v, (int, float)) for v in combined.values()):
+            from pytest_quantum.stats.tests import tvd_from_counts
+
+            try:
+                result_lines: list[str] = ["Quantum count distributions differ:"]
+                all_keys = sorted(set(left) | set(right))
+                total_l = sum(left.values()) or 1  # type: ignore[arg-type]
+                total_r = sum(right.values()) or 1  # type: ignore[arg-type]
+                result_lines.append(
+                    f"  {'key':<10} {'left':>10} {'right':>10} {'diff':>10}"
+                )
+                result_lines.append(f"  {'-' * 42}")
+                for k in all_keys:
+                    l_count = left.get(k, 0)
+                    r_count = right.get(k, 0)
+                    diff = l_count / total_l - r_count / total_r  # type: ignore[operator]
+                    result_lines.append(
+                        f"  {k:<10} {l_count / total_l:>10.4f} "
+                        f"{r_count / total_r:>10.4f} {diff:>+10.4f}"
+                    )
+                distance = tvd_from_counts(
+                    {k: int(v) for k, v in left.items()},  # type: ignore[union-attr]
+                    {k: int(v) for k, v in right.items()},  # type: ignore[union-attr]
+                )
+                result_lines.append(f"  TVD = {distance:.4f}")
+                return result_lines
+            except Exception:
+                pass
+
+    # Numpy array comparison (original behaviour)
     try:
         import numpy as np
 
@@ -490,3 +541,160 @@ def pennylane_device() -> Callable[..., Any]:
         return qml.device("default.qubit", wires=wires, shots=shots)
 
     return make_device
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — Pytket
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def pytket_circuit_factory() -> Any:
+    """Returns pytket Circuit class for building circuits in tests.
+
+    Usage::
+
+        def test_h(pytket_circuit_factory):
+            Circuit = pytket_circuit_factory
+            c = Circuit(1)
+            c.H(0)
+            assert c.n_qubits == 1
+    """
+    _require("pytket", "pip install pytket")
+    from pytket.circuit import Circuit  # type: ignore[import-untyped]
+
+    return Circuit
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — Stim
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture(scope="session")
+def stim_sampler() -> Any:
+    """Stim stabilizer circuit sampler.
+
+    Returns a callable ``sample(circuit, shots=1024)`` that runs a stim
+    circuit and returns a count dict ``{"00": 503, "11": 497, ...}``.
+
+    Usage::
+
+        def test_bell(stim_sampler):
+            import stim
+
+            c = stim.Circuit('''
+                H 0
+                CNOT 0 1
+                M 0 1
+            ''')
+            counts = stim_sampler(c, shots=1000)
+            assert "00" in counts
+    """
+    _require("stim", "pip install stim")
+
+    def _sample(circuit: Any, *, shots: int = 1024) -> dict[str, int]:
+        sampler = circuit.compile_sampler()
+        batch = sampler.sample(shots)  # shape (shots, n_measurements)
+        counts: dict[str, int] = {}
+        for row in batch:
+            key = "".join("1" if b else "0" for b in row)
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    return _sample
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — Benchmarking
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def quantum_benchmark(request: pytest.FixtureRequest) -> Any:
+    """Quantum-aware benchmark fixture.
+
+    Wraps pytest-benchmark if installed, otherwise provides a simple timing
+    wrapper.
+
+    Usage::
+
+        def test_circuit_speed(quantum_benchmark):
+            result = quantum_benchmark(run_circuit, my_circuit, shots=1024)
+    """
+    try:
+        benchmark = request.getfixturevalue("benchmark")
+
+        def _run_with_benchmark(
+            fn: Any, *args: Any, n_qubits: int | None = None, **kwargs: Any
+        ) -> Any:
+            result = benchmark.pedantic(
+                fn, args=args, kwargs=kwargs, iterations=1, rounds=5
+            )
+            if n_qubits is not None:
+                benchmark.extra_info["n_qubits"] = n_qubits
+            return result
+
+        return _run_with_benchmark
+    except pytest.FixtureLookupError:
+        import time
+
+        def _run_simple(
+            fn: Any, *args: Any, n_qubits: int | None = None, **kwargs: Any
+        ) -> Any:
+            start = time.perf_counter()
+            result = fn(*args, **kwargs)
+            elapsed = time.perf_counter() - start
+            print(f"\n  quantum_benchmark: {elapsed * 1000:.1f}ms")
+            return result
+
+        return _run_simple
+
+
+# ---------------------------------------------------------------------------
+# Fixtures — Shot Budget
+# ---------------------------------------------------------------------------
+
+
+@pytest.fixture
+def shot_budget() -> Any:
+    """Track total shots used across assertions in a test.
+
+    Returns the ``ShotBudget`` class — instantiate with ``shot_budget(max_shots=N)``.
+
+    Usage::
+
+        def test_bell(aer_simulator, shot_budget):
+            budget = shot_budget(max_shots=10_000)
+            shots = budget.allocate(2000)
+            # ... run circuit with shots ...
+            assert budget.remaining == 8000
+    """
+
+    class ShotBudget:
+        """Tracks shot usage within a single test."""
+
+        def __init__(self, max_shots: int = 100_000) -> None:
+            self.max_shots = max_shots
+            self.used = 0
+
+        def allocate(self, n: int) -> int:
+            """Return *n* if within budget, else raise AssertionError."""
+            if self.used + n > self.max_shots:
+                raise AssertionError(
+                    f"Shot budget exceeded: requesting {n} more shots but only "
+                    f"{self.max_shots - self.used} remaining of "
+                    f"{self.max_shots} total."
+                )
+            self.used += n
+            return n
+
+        @property
+        def remaining(self) -> int:
+            """Number of shots remaining in the budget."""
+            return self.max_shots - self.used
+
+        def __repr__(self) -> str:
+            return f"ShotBudget(used={self.used}/{self.max_shots})"
+
+    return ShotBudget

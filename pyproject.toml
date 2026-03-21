@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-quantum"
-version = "0.2.0"
+version = "0.3.0"
 description = "A cross-framework pytest plugin for quantum program testing"
 readme = "README.md"
 license = "MIT"
@@ -46,6 +46,8 @@ braket   = ["amazon-braket-sdk>=1.80", "amazon-braket-default-simulator>=1.23"]
 graphix  = ["graphix>=0.3"]
 pennylane = ["pennylane>=0.38"]
 qcec     = ["mqt.qcec>=2.0"]
+pytket   = ["pytket>=1.30"]
+stim     = ["stim>=1.13"]
 all = [
     "pytest-quantum[qiskit]",
     "pytest-quantum[cirq]",
@@ -53,6 +55,8 @@ all = [
     "pytest-quantum[graphix]",
     "pytest-quantum[pennylane]",
     "pytest-quantum[qcec]",
+    "pytest-quantum[pytket]",
+    "pytest-quantum[stim]",
 ]
 
 [project.urls]
@@ -85,6 +89,8 @@ dev = [
     "graphix>=0.3",
     "pennylane>=0.38",
     "mqt.qcec>=2.0",
+    "pytket>=1.30",
+    "stim>=1.13",
 ]
 
 [tool.hatch.build.targets.wheel]
@@ -132,7 +138,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py"                    = ["ANN", "S101", "PT011", "TC002", "RUF059", "TC003"]
+"tests/**/*.py"                    = ["ANN", "S101", "PT011", "TC002", "RUF059", "TC003", "E402"]
 "src/pytest_quantum/__init__.py"   = ["F401", "E402"]
 "src/pytest_quantum/plugin.py"     = ["ANN201"]  # fixture return types use Any
 

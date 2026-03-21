@@ -9,6 +9,36 @@ from __future__ import annotations
 
 from typing import Any
 
+# ---------------------------------------------------------------------------
+# Clifford gate sets per framework
+# ---------------------------------------------------------------------------
+_CLIFFORD_BRAKET = frozenset(
+    {"H", "X", "Y", "Z", "S", "Si", "CNot", "CZ", "Swap", "CY", "I", "V", "Vi"}
+)
+_CLIFFORD_PENNYLANE = frozenset(
+    {
+        "PauliX",
+        "PauliY",
+        "PauliZ",
+        "Hadamard",
+        "S",
+        "SX",
+        "CNOT",
+        "CY",
+        "CZ",
+        "SWAP",
+        "ISWAP",
+        "Identity",
+        "Adjoint(S)",
+        "Adjoint(SX)",
+        # Aliases
+        "X",
+        "Y",
+        "Z",
+        "H",
+    }
+)
+
 # Clifford gate sets (case-normalised)
 _CLIFFORD_QISKIT = frozenset(
     {
@@ -195,10 +225,17 @@ def assert_gate_count(
             1 for op in tape.operations if type(op).__name__.lower() == name_lower
         )
 
+    elif module.startswith("pytket"):
+        name_lower = gate_name.lower()
+        # Try to match by OpType name (case-insensitive)
+        actual = sum(
+            1 for cmd in c.get_commands() if cmd.op.type.name.lower() == name_lower
+        )
+
     else:
         raise NotImplementedError(
-            f"assert_gate_count supports Qiskit, Cirq, Braket, and PennyLane. "
-            f"Got circuit type: {type(circuit).__qualname__!r}."
+            f"assert_gate_count supports Qiskit, Cirq, Braket, PennyLane, "
+            f"and Pytket. Got circuit type: {type(circuit).__qualname__!r}."
         )
 
     if actual != expected:
@@ -252,6 +289,9 @@ def _get_depth(circuit: object) -> int:
                 "Install it with: pip install pytest-quantum[pennylane]"
             ) from exc
 
+    if module.startswith("pytket"):
+        return int(c.depth())
+
     raise TypeError(
         f"assert_circuit_depth does not support circuit type "
         f"{type(circuit).__qualname__!r}.\n"
@@ -275,6 +315,9 @@ def _get_width(circuit: object) -> int:
 
     if module.startswith("pennylane") or hasattr(circuit, "device"):
         return len(c.device.wires)
+
+    if module.startswith("pytket"):
+        return int(c.n_qubits)
 
     raise TypeError(
         f"assert_circuit_width does not support circuit type "
@@ -331,7 +374,56 @@ def assert_circuit_is_clifford(circuit: object) -> None:
             )
         return
 
+    if module.startswith("braket"):
+        non_clifford = [
+            type(instr.operator).__name__
+            for instr in c.instructions
+            if type(instr.operator).__name__ not in _CLIFFORD_BRAKET
+        ]
+        if non_clifford:
+            raise AssertionError(
+                f"Circuit contains non-Clifford gates: {sorted(set(non_clifford))}. "
+                f"Clifford set: {sorted(_CLIFFORD_BRAKET)}"
+            )
+        return
+
+    if module.startswith("pennylane") or hasattr(circuit, "device"):
+        tape = None
+        try:
+            tape = c.tape
+        except AttributeError:
+            pass
+        if tape is None:
+            try:
+                c()
+                tape = c.tape
+            except Exception:
+                pass
+        if tape is None:
+            raise TypeError("Cannot check Clifford: QNode tape could not be obtained.")
+        non_clifford = [
+            op.name for op in tape.operations if op.name not in _CLIFFORD_PENNYLANE
+        ]
+        if non_clifford:
+            raise AssertionError(
+                f"Circuit contains non-Clifford operations: "
+                f"{sorted(set(non_clifford))}. "
+                f"Clifford set: {sorted(_CLIFFORD_PENNYLANE)}"
+            )
+        return
+
+    if module.startswith("pytket"):
+        try:
+            from pytket.tableau import UnitaryTableau  # type: ignore[import-untyped]
+
+            UnitaryTableau(c)  # raises if circuit contains non-Clifford gates
+        except ImportError as exc:
+            raise ImportError("pytket is required: pip install pytket") from exc
+        except Exception as exc:
+            raise AssertionError(f"Circuit contains non-Clifford gates: {exc}") from exc
+        return
+
     raise NotImplementedError(
-        f"assert_circuit_is_clifford supports Qiskit and Cirq. "
-        f"Got: {type(circuit).__qualname__!r}"
+        f"assert_circuit_is_clifford supports Qiskit and Cirq (and also "
+        f"Braket, PennyLane, Pytket). Got: {type(circuit).__qualname__!r}"
     )

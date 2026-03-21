@@ -865,6 +865,15 @@ wheels = [
 ]
 
 [[package]]
+name = "graphviz"
+version = "0.21"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/f8/b3/3ac91e9be6b761a4b30d66ff165e54439dcd48b83f4e20d644867215f6ca/graphviz-0.21.tar.gz", hash = "sha256:20743e7183be82aaaa8ad6c93f8893c923bd6658a04c32ee115edb3c8a835f78", size = 200434, upload-time = "2025-06-15T09:35:05.824Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/91/4c/e0ce1ef95d4000ebc1c11801f9b944fa5910ecc15b5e351865763d8657f8/graphviz-0.21-py3-none-any.whl", hash = "sha256:54f33de9f4f911d7e84e4191749cac8cc5653f815b06738c54db9a15ab8b1e42", size = 47300, upload-time = "2025-06-15T09:35:04.433Z" },
+]
+
+[[package]]
 name = "idna"
 version = "3.11"
 source = { registry = "https://pypi.org/simple" }
@@ -1016,6 +1025,15 @@ wheels = [
     { url = "https://files.pythonhosted.org/packages/48/44/2b5b95b7aa39fb2d8d9d956e0f3d5d45aef2ae1d942d4c3ffac2f9cfed1a/kiwisolver-1.5.0-pp311-pypy311_pp73-manylinux2014_x86_64.manylinux_2_17_x86_64.whl", hash = "sha256:be4a51a55833dc29ab5d7503e7bcb3b3af3402d266018137127450005cdfe737", size = 79892, upload-time = "2026-03-09T13:15:49.694Z" },
     { url = "https://files.pythonhosted.org/packages/52/7d/7157f9bba6b455cfb4632ed411e199fc8b8977642c2b12082e1bd9e6d173/kiwisolver-1.5.0-pp311-pypy311_pp73-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:daae526907e262de627d8f70058a0f64acc9e2641c164c99c8f594b34a799a16", size = 77603, upload-time = "2026-03-09T13:15:50.945Z" },
     { url = "https://files.pythonhosted.org/packages/0a/dd/8050c947d435c8d4bc94e3252f4d8bb8a76cfb424f043a8680be637a57f1/kiwisolver-1.5.0-pp311-pypy311_pp73-win_amd64.whl", hash = "sha256:59cd8683f575d96df5bb48f6add94afc055012c29e28124fcae2b63661b9efb1", size = 73558, upload-time = "2026-03-09T13:15:52.112Z" },
+]
+
+[[package]]
+name = "lark"
+version = "1.3.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/da/34/28fff3ab31ccff1fd4f6c7c7b0ceb2b6968d8ea4950663eadcb5720591a0/lark-1.3.1.tar.gz", hash = "sha256:b426a7a6d6d53189d318f2b6236ab5d6429eaf09259f1ca33eb716eed10d2905", size = 382732, upload-time = "2025-10-27T18:25:56.653Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/82/3d/14ce75ef66813643812f3093ab17e46d3a206942ce7376d31ec2d36229e7/lark-1.3.1-py3-none-any.whl", hash = "sha256:c629b661023a014c37da873b4ff58a817398d12635d3bbb2c5a03be7fe5d1e12", size = 113151, upload-time = "2025-10-27T18:25:54.882Z" },
 ]
 
 [[package]]
@@ -2004,7 +2022,7 @@ wheels = [
 
 [[package]]
 name = "pytest-quantum"
-version = "0.2.0"
+version = "0.3.0"
 source = { editable = "." }
 dependencies = [
     { name = "numpy" },
@@ -2020,8 +2038,10 @@ all = [
     { name = "graphix" },
     { name = "mqt-qcec" },
     { name = "pennylane" },
+    { name = "pytket" },
     { name = "qiskit" },
     { name = "qiskit-aer" },
+    { name = "stim" },
 ]
 braket = [
     { name = "amazon-braket-default-simulator" },
@@ -2036,12 +2056,18 @@ graphix = [
 pennylane = [
     { name = "pennylane" },
 ]
+pytket = [
+    { name = "pytket" },
+]
 qcec = [
     { name = "mqt-qcec" },
 ]
 qiskit = [
     { name = "qiskit" },
     { name = "qiskit-aer" },
+]
+stim = [
+    { name = "stim" },
 ]
 
 [package.dev-dependencies]
@@ -2055,9 +2081,11 @@ dev = [
     { name = "pennylane" },
     { name = "pytest" },
     { name = "pytest-cov" },
+    { name = "pytket" },
     { name = "qiskit" },
     { name = "qiskit-aer" },
     { name = "ruff" },
+    { name = "stim" },
 ]
 docs = [
     { name = "furo" },
@@ -2083,13 +2111,17 @@ requires-dist = [
     { name = "pytest-quantum", extras = ["cirq"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["graphix"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["pennylane"], marker = "extra == 'all'" },
+    { name = "pytest-quantum", extras = ["pytket"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["qcec"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["qiskit"], marker = "extra == 'all'" },
+    { name = "pytest-quantum", extras = ["stim"], marker = "extra == 'all'" },
+    { name = "pytket", marker = "extra == 'pytket'", specifier = ">=1.30" },
     { name = "qiskit", marker = "extra == 'qiskit'", specifier = ">=1.0" },
     { name = "qiskit-aer", marker = "extra == 'qiskit'", specifier = ">=0.15" },
     { name = "scipy", specifier = ">=1.13" },
+    { name = "stim", marker = "extra == 'stim'", specifier = ">=1.13" },
 ]
-provides-extras = ["qiskit", "cirq", "braket", "graphix", "pennylane", "qcec", "all"]
+provides-extras = ["qiskit", "cirq", "braket", "graphix", "pennylane", "qcec", "pytket", "stim", "all"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -2102,9 +2134,11 @@ dev = [
     { name = "pennylane", specifier = ">=0.38" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-cov", specifier = ">=6.0" },
+    { name = "pytket", specifier = ">=1.30" },
     { name = "qiskit", specifier = ">=1.0" },
     { name = "qiskit-aer", specifier = ">=0.15" },
     { name = "ruff", specifier = ">=0.9" },
+    { name = "stim", specifier = ">=1.13" },
 ]
 docs = [
     { name = "furo", specifier = ">=2024.8" },
@@ -2124,6 +2158,34 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/66/c0/0c8b6ad9f17a802ee498c46e004a0eb49bc148f2fd230864601a86dcf6db/python-dateutil-2.9.0.post0.tar.gz", hash = "sha256:37dd54208da7e1cd875388217d5e00ebd4179249f90fb72437e91a35459a0ad3", size = 342432, upload-time = "2024-03-01T18:36:20.211Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ec/57/56b9bcc3c9c6a792fcbaf139543cee77261f3651ca9da0c93f5c1221264b/python_dateutil-2.9.0.post0-py2.py3-none-any.whl", hash = "sha256:a8b2bc7bffae282281c8140a97d3aa9c14da0b136dfe83f850eea9a5f7470427", size = 229892, upload-time = "2024-03-01T18:36:18.57Z" },
+]
+
+[[package]]
+name = "pytket"
+version = "2.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "graphviz" },
+    { name = "jinja2" },
+    { name = "lark" },
+    { name = "networkx" },
+    { name = "numpy" },
+    { name = "qwasm" },
+    { name = "scipy" },
+    { name = "sympy" },
+    { name = "typing-extensions" },
+]
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/33/4b/044fd8912071040a9f98f2fd85a506093c8387e964238b381114b679f81d/pytket-2.15.0-cp311-cp311-macosx_14_0_arm64.whl", hash = "sha256:c48e39632cb923df213e0c7b5d5890bb5b0595a753ba694c94a76c6b3975a88b", size = 5547759, upload-time = "2026-03-06T16:14:16.474Z" },
+    { url = "https://files.pythonhosted.org/packages/a0/0e/7cf5cc85d8bca150f25c4ca682abc6325cadd98154e798b5157fb98cb9a9/pytket-2.15.0-cp311-cp311-macosx_15_0_x86_64.whl", hash = "sha256:28aa4e25248123e5d67b1415e3d9d8ec384283ea88d577839f6d7659f5232579", size = 6237033, upload-time = "2026-03-06T16:14:18.324Z" },
+    { url = "https://files.pythonhosted.org/packages/d3/04/fd10c47e1b3c20382fbe7fc33f8d3cd20463bbb55e5785ee5ef510663928/pytket-2.15.0-cp311-cp311-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:30c48893dee117d47771962833347225571fd87f3ef1807b5b3d18fcf06ef271", size = 7579634, upload-time = "2026-03-06T16:14:20.064Z" },
+    { url = "https://files.pythonhosted.org/packages/5a/35/b0a5f93b6715d6acac4860f00298eb38aba3bcb8c018a776d33603d58122/pytket-2.15.0-cp311-cp311-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:13ff34fdb516ebd3a203ff782b02680d9f3d5d5e04ee0c986aac3faab0f3bc98", size = 8316190, upload-time = "2026-03-06T16:14:22.164Z" },
+    { url = "https://files.pythonhosted.org/packages/e1/c4/cc295210bd8d9270d70d038fe4a8752fc0c9c38c49e20ca443843b4e5e24/pytket-2.15.0-cp311-cp311-win_amd64.whl", hash = "sha256:31893e38e1294fec67d81e9c4a85a137a5912136eaca0f6d61dd1ef358244214", size = 9788736, upload-time = "2026-03-06T16:14:24.421Z" },
+    { url = "https://files.pythonhosted.org/packages/b6/bf/2e693cd9a80dd57f94cc10d5003622ce33dc824c88713c37760a9329a495/pytket-2.15.0-cp312-abi3-macosx_14_0_arm64.whl", hash = "sha256:035815cdf331e97c6c2cd56f60882b30f768721975d7c2f082f5d044237b503e", size = 5528681, upload-time = "2026-03-06T16:14:26.697Z" },
+    { url = "https://files.pythonhosted.org/packages/62/35/11e65debec9d99286cc8ac84aa3f0404710a84852f318468bfc59e0ca205/pytket-2.15.0-cp312-abi3-macosx_15_0_x86_64.whl", hash = "sha256:06672344186a51b97ff7b779e71585092e425475abbabf535a65c23786afb042", size = 6218603, upload-time = "2026-03-06T16:14:28.736Z" },
+    { url = "https://files.pythonhosted.org/packages/2c/e6/ef8ff958f7d03f48f6e22d23bb6a2ea15ad7c89c9d3de42bcc88b568b23a/pytket-2.15.0-cp312-abi3-manylinux_2_26_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:fb12d0598ba47ef18c25544fcb83a063e7e67c9cce36de127ead507014c657c3", size = 7529689, upload-time = "2026-03-06T16:14:30.599Z" },
+    { url = "https://files.pythonhosted.org/packages/56/20/8e1599d5a7c9ce28cf78371f6b9d364f4d1739b682279aba352b9b8f5c6b/pytket-2.15.0-cp312-abi3-manylinux_2_27_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a7947db076949df22f3941cc90290afc470a73ade5d4dc1e6509d5fc58965ad5", size = 8258227, upload-time = "2026-03-06T16:14:32.417Z" },
+    { url = "https://files.pythonhosted.org/packages/a5/dd/68fdb8117de1d8684b3416a42611fb64e59f0d674500062e3fdc50dd78b7/pytket-2.15.0-cp312-abi3-win_amd64.whl", hash = "sha256:1afae2c1b08692c9ac04a4cc9421e3aa039cb7e468d4bd2011a802f67c88dfb1", size = 9761390, upload-time = "2026-03-06T16:14:34.463Z" },
 ]
 
 [[package]]
@@ -2272,6 +2334,18 @@ dependencies = [
 sdist = { url = "https://files.pythonhosted.org/packages/fc/7f/a4fa9cde1425c935c8f25d8ffa0810b922e9c49bcd43be43cf3d0a68d053/quimb-1.13.0.tar.gz", hash = "sha256:efc9aa5f32b69ada50b5950d1eb0d104100903aecbf8a6615e95fa1073aa9f68", size = 10343979, upload-time = "2026-03-20T00:56:47.26Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/95/b1/07c2f512960f0a70f741592b8f46f2edb09f5a3512487f55005b176dd604/quimb-1.13.0-py3-none-any.whl", hash = "sha256:861862ca9a03c91476ca9e013f9da6df80fa2d53783a6a6f206e8862fd87f358", size = 2016612, upload-time = "2026-03-20T00:56:45.23Z" },
+]
+
+[[package]]
+name = "qwasm"
+version = "1.0.1"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "setuptools" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/6f/a1/b52f356f907bedf02f536970c1b46aa69bc57280c4d17ed6b5c39180959f/qwasm-1.0.1.tar.gz", hash = "sha256:01f5dfe27159b7fdd9d02cd299833225d528fa383d1278268e5e1526357950fb", size = 13921, upload-time = "2022-10-05T09:46:56.589Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/f5/e9/fbde58bf8dcc05dc9d09dfcd06e631f470aa1e6732870cf06cd34ab86eaf/qwasm-1.0.1-py3-none-any.whl", hash = "sha256:c4c82a3f962d29314634868e06375f0cb4676c3d5266fbe137f6cd67321b0ef1", size = 15322, upload-time = "2022-10-05T09:46:54.856Z" },
 ]
 
 [[package]]
@@ -2676,6 +2750,28 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/a2/6d/90764092216fa560f6587f83bb70113a8ba510ba436c6476a2b47359057c/stevedore-5.7.0.tar.gz", hash = "sha256:31dd6fe6b3cbe921e21dcefabc9a5f1cf848cf538a1f27543721b8ca09948aa3", size = 516200, upload-time = "2026-02-20T13:27:06.765Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/69/06/36d260a695f383345ab5bbc3fd447249594ae2fa8dfd19c533d5ae23f46b/stevedore-5.7.0-py3-none-any.whl", hash = "sha256:fd25efbb32f1abb4c9e502f385f0018632baac11f9ee5d1b70f88cc5e22ad4ed", size = 54483, upload-time = "2026-02-20T13:27:05.561Z" },
+]
+
+[[package]]
+name = "stim"
+version = "1.15.0"
+source = { registry = "https://pypi.org/simple" }
+dependencies = [
+    { name = "numpy" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/77/15/0218eacd61cda992daf398bc36daf9830c8b430157a3ac0c06379598d24a/stim-1.15.0.tar.gz", hash = "sha256:95236006859d6754be99629d4fb44788e742e962ac8c59caad421ca088f7350e", size = 853226, upload-time = "2025-05-07T06:19:30.452Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/94/5f/82a80a3b0e494af4723737ea2109e64edbedc25fe05dcee8918e70d3a060/stim-1.15.0-cp311-cp311-macosx_10_9_x86_64.whl", hash = "sha256:48525d92965cc65b61399a9e1fe1d7a8925981bb4430ef69866d4e5c67a77d16", size = 1956537, upload-time = "2025-05-07T06:18:36.685Z" },
+    { url = "https://files.pythonhosted.org/packages/a8/82/0a01580071c6d50107298e93faa88250fc30f1538117ec887ec48de7816d/stim-1.15.0-cp311-cp311-macosx_11_0_arm64.whl", hash = "sha256:0bb3757c69c9b16fd24ff7400b5cddb22017c4cae84fc4b7b73f84373cb03c00", size = 1826988, upload-time = "2025-05-07T06:18:38.598Z" },
+    { url = "https://files.pythonhosted.org/packages/d7/c1/1dfa90b0622070eb39b4260eca26814d6fbac0f278e23b156072d9fac86b/stim-1.15.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:f0fb249f1a2897a22cbe4e0c2627abf49188cbbf19b942d4749972d1c3bdf12c", size = 4989254, upload-time = "2025-05-07T06:18:40.628Z" },
+    { url = "https://files.pythonhosted.org/packages/cb/27/5b8e8155e7fb75a9313e70f77a62233e0b9041c5acb60f6cf5a908d221e8/stim-1.15.0-cp311-cp311-win_amd64.whl", hash = "sha256:6e3b61a2d9dc4b4312f5cf2ccf9c9f7175fe13a12e5c08df99835c5275680919", size = 2625370, upload-time = "2025-05-07T06:18:42.65Z" },
+    { url = "https://files.pythonhosted.org/packages/65/99/da44f1fde8692deb74e291899699ee166e5726b975addff50f0f68bfc4c1/stim-1.15.0-cp312-cp312-macosx_10_13_x86_64.whl", hash = "sha256:d426e00afe21478828369df3aaa82905e710c5b1f72582ec45244e3739d6183d", size = 1974467, upload-time = "2025-05-07T06:18:44.665Z" },
+    { url = "https://files.pythonhosted.org/packages/46/f3/5aa6a7b31bcc9fb2540f65954b99dbf1e8c5fcd8d0aa164857b74e5eae9a/stim-1.15.0-cp312-cp312-macosx_11_0_arm64.whl", hash = "sha256:fc613f78bc88b4318d7f34f9fddacec52638c11b72cc618f911bdd7ca153f938", size = 1838840, upload-time = "2025-05-07T06:18:46.025Z" },
+    { url = "https://files.pythonhosted.org/packages/5b/25/f3b56b07c0c3fb31cb973a5c47ef88da022a859940dd46c910b706fc74aa/stim-1.15.0-cp312-cp312-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fdd9e5ab85ba2fb113b8834422518f6e46a4aea2e0f6f7305cfc2ad0fcd07086", size = 4968123, upload-time = "2025-05-07T06:18:48.197Z" },
+    { url = "https://files.pythonhosted.org/packages/81/7e/abfed103a045a6ee8c7f3f00cd820d1cf9127304066aec42ea9fb89ee9c0/stim-1.15.0-cp312-cp312-win_amd64.whl", hash = "sha256:e92d5be90f6c92bada6b5aea64dfe9c80813a06e1316a71d5a36203dd24492f5", size = 2625908, upload-time = "2025-05-07T06:18:49.681Z" },
+    { url = "https://files.pythonhosted.org/packages/28/7f/825d745dc128321dd2f41da75d18111121a90e7bb711da24f28b1e003c9e/stim-1.15.0-cp313-cp313-macosx_10_13_x86_64.whl", hash = "sha256:673a323402c266b1a1225565d69d31816c3d4a4c259383ed4fa9c15cacd12411", size = 1974528, upload-time = "2025-05-07T06:18:51.125Z" },
+    { url = "https://files.pythonhosted.org/packages/bb/99/10604264cd7159573d6d01cdf5f9675c71580dcc3df5c533fccabad59cda/stim-1.15.0-cp313-cp313-macosx_11_0_arm64.whl", hash = "sha256:35e36d0479015b4dcb4261b8b68be85067cbd4bac5632bdfdb3ee3f8671d05a9", size = 1838700, upload-time = "2025-05-07T06:18:52.95Z" },
+    { url = "https://files.pythonhosted.org/packages/25/97/1bf3bf16129667eff1c0d0f3bb95262a2bec8c8d1227aa973b8e2a1935b6/stim-1.15.0-cp313-cp313-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:fb9465ab120837ecbd26b5af216a00715f04da087ddcfa09646892c8de720d09", size = 4967782, upload-time = "2025-05-07T06:18:54.94Z" },
 ]
 
 [[package]]

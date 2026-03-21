@@ -50,6 +50,10 @@ def _is_pennylane(circuit: object) -> bool:
     return mod.startswith("pennylane") or hasattr(circuit, "device")
 
 
+def _is_pytket(circuit: object) -> bool:
+    return type(circuit).__module__.startswith("pytket")
+
+
 # ---------------------------------------------------------------------------
 # Public API
 # ---------------------------------------------------------------------------
@@ -93,11 +97,13 @@ def to_unitary(circuit: object) -> NDArray[np.complex128]:
         return _from_braket(circuit)
     if _is_pennylane(circuit):
         return _from_pennylane(circuit)
+    if _is_pytket(circuit):
+        return _from_pytket(circuit)
 
     raise TypeError(
         f"Unrecognised circuit type: {type(circuit).__qualname__!r}.\n"
         "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
-        "braket.circuits.Circuit, pennylane QNode.\n"
+        "braket.circuits.Circuit, pennylane QNode, pytket Circuit.\n"
         "For graphix patterns use assert_state_fidelity_above() instead."
     )
 
@@ -147,6 +153,24 @@ def _from_braket(circuit: object) -> NDArray[np.complex128]:
         ) from exc
 
     return np.asarray(result, dtype=np.complex128)
+
+
+def _from_pytket(circuit: object) -> NDArray[np.complex128]:
+    try:
+        import numpy as np  # already imported at top level, but keep for clarity
+
+        U = np.asarray(cast("Any", circuit).get_unitary())
+        # pytket uses ILO-BE (big-endian) like Cirq — no reversal needed vs Cirq,
+        # but qubit order reversal is handled in assert_circuits_equivalent when
+        # comparing against Qiskit (little-endian).
+        return U.astype(np.complex128)
+    except AttributeError as exc:
+        raise ImportError(
+            "pytket is required for Pytket circuit support. "
+            "Install it with: pip install pytket"
+        ) from exc
+    except ImportError as exc:
+        raise ImportError("pytket is required: pip install pytket") from exc
 
 
 def _from_pennylane(circuit: object) -> NDArray[np.complex128]:
