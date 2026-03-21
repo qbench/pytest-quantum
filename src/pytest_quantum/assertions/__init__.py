@@ -34,6 +34,13 @@ from pytest_quantum.assertions.entanglement import (
     assert_entanglement_entropy_below,
     assert_schmidt_rank_at_most,
 )
+from pytest_quantum.assertions.hardware import (
+    assert_backend_calibration,
+    assert_backend_executes,
+    assert_circuit_fits_backend,
+    assert_mirror_fidelity,
+    assert_real_counts_close,
+)
 from pytest_quantum.assertions.information import (
     assert_cross_entropy_below,
     assert_hellinger_close,
@@ -87,10 +94,13 @@ from pytest_quantum.assertions.unitary import (
 )
 
 __all__ = [
+    "assert_backend_calibration",
+    "assert_backend_executes",
     "assert_bloch_sphere_close",
     "assert_cdr_reduces_error",
     "assert_channel_is_cptp",
     "assert_circuit_depth",
+    "assert_circuit_fits_backend",
     "assert_circuit_is_clifford",
     "assert_circuit_sweep",
     "assert_circuit_sweep_states",
@@ -112,6 +122,7 @@ __all__ = [
     "assert_hermitian",
     "assert_kl_divergence_below",
     "assert_measurement_distribution",
+    "assert_mirror_fidelity",
     "assert_mitigation_improves_fidelity",
     "assert_noise_fidelity_above",
     "assert_normalized",
@@ -121,6 +132,7 @@ __all__ = [
     "assert_process_fidelity_above",
     "assert_purity_above",
     "assert_qasm_roundtrip",
+    "assert_real_counts_close",
     "assert_sampler_distribution",
     "assert_schmidt_rank_at_most",
     "assert_stabilizer_state",

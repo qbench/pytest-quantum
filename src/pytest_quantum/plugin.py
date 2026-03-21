@@ -844,28 +844,49 @@ def ibm_backend(request: pytest.FixtureRequest) -> Any:
     token = os.environ.get("IBM_QUANTUM_TOKEN", "")
     instance = os.environ.get("IBM_QUANTUM_INSTANCE", "ibm-q/open/main")
     backend_name = os.environ.get("IBM_QUANTUM_BACKEND", "")
+    # ibm_quantum = legacy channel (free tier); ibm_cloud = IBM Cloud accounts
+    channel = os.environ.get("IBM_QUANTUM_CHANNEL", "ibm_quantum")
+    min_qubits = int(os.environ.get("IBM_QUANTUM_MIN_QUBITS", "5"))
 
     if not token:
-        pytest.skip("IBM_QUANTUM_TOKEN environment variable not set")
+        pytest.skip(
+            "IBM_QUANTUM_TOKEN not set. Export your token:\n"
+            "  export IBM_QUANTUM_TOKEN=<your-token>\n"
+            "Get one at https://quantum.ibm.com"
+        )
 
     try:
         from qiskit_ibm_runtime import QiskitRuntimeService
-
-        service = QiskitRuntimeService(
-            channel="ibm_quantum", token=token, instance=instance
-        )
-        if backend_name:
-            backend = service.backend(backend_name)
-        else:
-            # Pick least-busy backend with >= 5 qubits
-            backend = service.least_busy(
-                min_num_qubits=5, simulator=False, operational=True
-            )
-        return backend
     except ImportError:
         pytest.skip("qiskit-ibm-runtime not installed: pip install qiskit-ibm-runtime")
+
+    # Try the requested channel; fall back to the other one automatically
+    channels_to_try = [
+        channel,
+        "ibm_cloud" if channel == "ibm_quantum" else "ibm_quantum",
+    ]
+    service = None
+    for ch in channels_to_try:
+        try:
+            service = QiskitRuntimeService(channel=ch, token=token, instance=instance)
+            break
+        except Exception:
+            continue
+
+    if service is None:
+        pytest.skip(
+            "IBM Quantum connection failed on both ibm_quantum and ibm_cloud channels.\n"
+            "  Check that IBM_QUANTUM_TOKEN is valid and IBM_QUANTUM_INSTANCE is correct."
+        )
+
+    try:
+        if backend_name:
+            return service.backend(backend_name)
+        return service.least_busy(
+            min_num_qubits=min_qubits, simulator=False, operational=True
+        )
     except Exception as exc:
-        pytest.skip(f"IBM Quantum connection failed: {exc}")
+        pytest.skip(f"IBM Quantum backend selection failed: {exc}")
 
 
 @pytest.fixture(scope="session")
