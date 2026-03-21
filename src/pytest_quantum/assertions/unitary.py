@@ -148,6 +148,20 @@ def assert_circuits_equivalent(
     u_a = to_unitary(circuit_a)
     u_b = to_unitary(circuit_b)
 
+    # Normalize qubit ordering for cross-framework comparison.
+    # Qiskit = little-endian, Cirq = big-endian.
+    is_qiskit_a = type_a.startswith("qiskit")
+    is_cirq_b = type_b.startswith("cirq")
+    is_cirq_a = type_a.startswith("cirq")
+    is_qiskit_b = type_b.startswith("qiskit")
+
+    from pytest_quantum.converters.to_unitary import _reverse_qubit_order
+
+    if is_qiskit_a and is_cirq_b:
+        u_a = _reverse_qubit_order(u_a)
+    elif is_cirq_a and is_qiskit_b:
+        u_b = _reverse_qubit_order(u_b)
+
     if u_a.shape != u_b.shape:
         raise AssertionError(
             f"Circuits act on different-sized Hilbert spaces.\n"

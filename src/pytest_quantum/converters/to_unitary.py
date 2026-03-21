@@ -26,6 +26,13 @@ if TYPE_CHECKING:
     from numpy.typing import NDArray
 
 
+def _reverse_qubit_order(U: NDArray[np.complex128]) -> NDArray[np.complex128]:
+    """Reverse qubit ordering convention (little-endian ↔ big-endian)."""
+    n = round(np.log2(U.shape[0]))
+    perm = [int(format(i, f"0{n}b")[::-1], 2) for i in range(2**n)]
+    return U[np.ix_(perm, perm)]
+
+
 def _is_qiskit(circuit: object) -> bool:
     return type(circuit).__module__.startswith("qiskit")
 

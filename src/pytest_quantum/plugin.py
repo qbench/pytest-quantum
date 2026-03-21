@@ -49,10 +49,16 @@ def pytest_addoption(parser: Parser) -> None:
         metavar="P",
         help="Override default p-value threshold for statistical assertion tests.",
     )
+    group.addoption(
+        "--quantum-update-snapshots",
+        action="store_true",
+        default=False,
+        help="Regenerate all pytest-quantum snapshot golden files.",
+    )
 
 
 def pytest_configure(config: Config) -> None:
-    """Register custom markers."""
+    """Register custom markers and handle snapshot update flag."""
     config.addinivalue_line(
         "markers",
         "quantum: mark test as a quantum test (runs by default with normal suite).",
@@ -70,6 +76,20 @@ def pytest_configure(config: Config) -> None:
         "markers",
         "significance(p): override the p-value threshold for this individual test.",
     )
+    config.addinivalue_line(
+        "markers",
+        "quantum_snapshot: marks snapshot tests (for selective update).",
+    )
+    # Set env var so snapshot helpers can detect the update flag without
+    # needing access to the pytest config object.
+    try:
+        if config.getoption("--quantum-update-snapshots", default=False):
+            import os
+
+            os.environ["PYTEST_QUANTUM_UPDATE_SNAPSHOTS"] = "1"
+    except (ValueError, AttributeError):
+        # getoption raises ValueError if the option is not registered yet
+        pass
 
 
 # ---------------------------------------------------------------------------
@@ -222,6 +242,67 @@ def aer_noise_simulator() -> object:
     return make_simulator
 
 
+@pytest.fixture(scope="session")
+def quantum_shots(request: pytest.FixtureRequest) -> int | None:
+    """Returns the --quantum-shots override value, or None if not set."""
+    return request.config.getoption("quantum_shots", default=None)  # type: ignore[no-any-return]
+
+
+@pytest.fixture(scope="session")
+def quantum_significance(request: pytest.FixtureRequest) -> float | None:
+    """Returns the --quantum-significance override value, or None if not set."""
+    return request.config.getoption("quantum_significance", default=None)  # type: ignore[no-any-return]
+
+
+@pytest.fixture(scope="session")
+def qiskit_sampler() -> object:
+    """Session-scoped Qiskit StatevectorSampler (Qiskit 1.0+ primitives).
+
+    Returns a StatevectorSampler instance. Use with assert_sampler_distribution.
+
+    Example::
+
+        def test_bell_sampler(qiskit_sampler):
+            from qiskit.circuit import QuantumCircuit
+            from pytest_quantum import assert_sampler_distribution
+
+            qc = QuantumCircuit(2, 2)
+            qc.h(0)
+            qc.cx(0, 1)
+            qc.measure([0, 1], [0, 1])
+            result = qiskit_sampler.run([(qc,)]).result()
+            assert_sampler_distribution(result, {"00": 0.5, "11": 0.5})
+    """
+    _require("qiskit", "qiskit")
+    from qiskit.primitives import StatevectorSampler
+
+    return StatevectorSampler()
+
+
+@pytest.fixture(scope="session")
+def qiskit_estimator() -> object:
+    """Session-scoped Qiskit StatevectorEstimator (Qiskit 1.0+ primitives).
+
+    Returns a StatevectorEstimator instance. Use with assert_estimator_close.
+
+    Example::
+
+        def test_z_expectation(qiskit_estimator):
+            from qiskit.circuit import QuantumCircuit
+            from qiskit.quantum_info import SparsePauliOp
+            from pytest_quantum import assert_estimator_close
+
+            qc = QuantumCircuit(1)  # |0> state, <Z> = 1.0
+            obs = SparsePauliOp("Z")
+            result = qiskit_estimator.run([(qc, obs)]).result()
+            assert_estimator_close(result, expected=1.0, atol=0.01)
+    """
+    _require("qiskit", "qiskit")
+    from qiskit.primitives import StatevectorEstimator
+
+    return StatevectorEstimator()
+
+
 # ---------------------------------------------------------------------------
 # Fixtures — Cirq
 # ---------------------------------------------------------------------------
@@ -245,6 +326,56 @@ def cirq_simulator() -> object:
     import cirq
 
     return cirq.Simulator()
+
+
+@pytest.fixture(scope="session")
+def cirq_sampler() -> object:
+    """Session-scoped Cirq sampler for shot-based simulation.
+
+    Returns a callable ``run(circuit, repetitions=1024)`` that executes
+    a Cirq circuit with measurements and returns a count dict.
+
+    The circuit must contain measurement gates (cirq.measure).
+
+    Example::
+
+        def test_cirq_bell(cirq_sampler):
+            import cirq
+
+            q = cirq.LineQubit.range(2)
+            circuit = cirq.Circuit(
+                cirq.H(q[0]),
+                cirq.CNOT(q[0], q[1]),
+                cirq.measure(q[0], q[1], key="result"),
+            )
+            counts = cirq_sampler(circuit, repetitions=2000)
+            assert "00" in counts
+    """
+    _require("cirq", "cirq")
+    import cirq
+    import numpy as np
+
+    def run(circuit: object, repetitions: int = 1024) -> dict[str, int]:
+        result = cirq.Simulator().run(
+            circuit,  # type: ignore[arg-type]
+            repetitions=repetitions,
+        )
+        # Collect all measurement keys and concatenate bits
+        all_bits = []
+        for key in sorted(result.measurements.keys()):
+            all_bits.append(result.measurements[key])
+        if not all_bits:
+            raise ValueError(
+                "Circuit has no measurement gates. Add cirq.measure() to the circuit."
+            )
+        combined = np.concatenate(all_bits, axis=1)
+        counts: dict[str, int] = {}
+        for row in combined:
+            key = "".join(str(b) for b in row)
+            counts[key] = counts.get(key, 0) + 1
+        return counts
+
+    return run
 
 
 # ---------------------------------------------------------------------------

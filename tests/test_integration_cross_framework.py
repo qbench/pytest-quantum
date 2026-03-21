@@ -117,6 +117,57 @@ class TestCrossFrameworkStructure:
             assert_circuit_width(qc, expected_qubits=2)
 
 
+class TestCrossFrameworkCnotEquivalence:
+    """After qubit-ordering fix, CNOT should be equivalent across frameworks."""
+
+    def test_cnot_qiskit_vs_cirq_equivalent(self) -> None:
+        """CNOT should be equivalent across Qiskit and Cirq after qubit ordering fix."""
+        import cirq
+        from qiskit import QuantumCircuit
+
+        from pytest_quantum import assert_circuits_equivalent
+
+        qk = QuantumCircuit(2)
+        qk.cx(0, 1)
+
+        q = cirq.LineQubit.range(2)
+        cc = cirq.Circuit(cirq.CNOT(q[0], q[1]))
+
+        assert_circuits_equivalent(qk, cc)
+
+    def test_bell_circuit_qiskit_vs_cirq_equivalent(self) -> None:
+        """H+CNOT Bell circuit is equivalent across Qiskit and Cirq."""
+        import cirq
+        from qiskit import QuantumCircuit
+
+        from pytest_quantum import assert_circuits_equivalent
+
+        qk = QuantumCircuit(2)
+        qk.h(0)
+        qk.cx(0, 1)
+
+        q = cirq.LineQubit.range(2)
+        cc = cirq.Circuit(cirq.H(q[0]), cirq.CNOT(q[0], q[1]))
+
+        assert_circuits_equivalent(qk, cc)
+
+    def test_different_multi_qubit_gates_not_equivalent(self) -> None:
+        """CX and CZ are not equivalent."""
+        import cirq
+        from qiskit import QuantumCircuit
+
+        from pytest_quantum import assert_circuits_equivalent
+
+        qk = QuantumCircuit(2)
+        qk.cx(0, 1)
+
+        q = cirq.LineQubit.range(2)
+        cc = cirq.Circuit(cirq.CZ(q[0], q[1]))
+
+        with pytest.raises(AssertionError, match="NOT equivalent"):
+            assert_circuits_equivalent(qk, cc)
+
+
 class TestCrossFrameworkGateCount:
     def test_cirq_gate_count_h(self) -> None:
         """Cirq H gate matches by str(op.gate).lower() == 'h'."""

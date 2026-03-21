@@ -9,6 +9,31 @@ from __future__ import annotations
 
 from typing import Any
 
+# Clifford gate sets (case-normalised)
+_CLIFFORD_QISKIT = frozenset(
+    {
+        "h",
+        "s",
+        "sdg",
+        "x",
+        "y",
+        "z",
+        "cx",
+        "cy",
+        "cz",
+        "swap",
+        "id",
+        "sx",
+        "sxdg",
+        "measure",
+        "barrier",
+        "reset",
+    }
+)
+_CLIFFORD_CIRQ = frozenset(
+    {"h", "x", "y", "z", "s", "cnot", "cz", "swap", "i", "measure"}
+)
+
 
 def assert_circuit_depth(
     circuit: object,
@@ -139,24 +164,40 @@ def assert_gate_count(
             if str(op.gate).lower() == name_lower
         )
 
-    elif module.startswith("pennylane"):
-        # QNode: inspect the tape after a dry run, or count via string matching
-        # For PennyLane, gate names match operation class names (e.g. "CNOT", "Hadamard")
+    elif module.startswith("braket"):
+        # Braket: iterate circuit.instructions, match operator.name case-insensitively
         name_lower = gate_name.lower()
+        actual = sum(
+            1 for instr in c.instructions if instr.operator.name.lower() == name_lower
+        )
+
+    elif module.startswith("pennylane") or hasattr(circuit, "device"):
+        # QNode: try to get the tape; if not available, do a dry run first
+        name_lower = gate_name.lower()
+        tape = None
         try:
-            tape = c.tape  # works if QNode has been called at least once
-            actual = sum(
-                1 for op in tape.operations if type(op).__name__.lower() == name_lower
-            )
-        except AttributeError as exc:
+            tape = c.tape
+        except AttributeError:
+            pass
+        if tape is None:
+            # Execute the circuit with a dry run to populate the tape
+            try:
+                c()
+                tape = c.tape
+            except Exception:
+                tape = None
+        if tape is None:
             raise TypeError(
-                "PennyLane QNode must be called at least once before gate count "
-                "can be inspected via assert_gate_count. Call circuit() first."
-            ) from exc
+                "PennyLane QNode tape could not be obtained. "
+                "Ensure the QNode is properly constructed."
+            )
+        actual = sum(
+            1 for op in tape.operations if type(op).__name__.lower() == name_lower
+        )
 
     else:
         raise NotImplementedError(
-            f"assert_gate_count supports Qiskit, Cirq, and PennyLane. "
+            f"assert_gate_count supports Qiskit, Cirq, Braket, and PennyLane. "
             f"Got circuit type: {type(circuit).__qualname__!r}."
         )
 
@@ -188,10 +229,33 @@ def _get_depth(circuit: object) -> int:
     if module.startswith("braket"):
         return int(c.depth)
 
+    if module.startswith("pennylane") or hasattr(circuit, "device"):
+        try:
+            import pennylane as qml
+
+            specs = qml.specs(c)()
+            # Try resources.depth first (newer PennyLane), then fall back to "depth"
+            if hasattr(specs, "get"):
+                resources = specs.get("resources", None)
+                if resources is not None and hasattr(resources, "depth"):
+                    return int(resources.depth)
+                depth_val = specs.get("depth", None)
+                if depth_val is not None:
+                    return int(depth_val)
+            raise TypeError(
+                "Could not extract depth from qml.specs() output. "
+                "Upgrade PennyLane to a version that exposes 'resources' or 'depth'."
+            )
+        except ImportError as exc:
+            raise TypeError(
+                "pennylane is required for PennyLane circuit depth. "
+                "Install it with: pip install pytest-quantum[pennylane]"
+            ) from exc
+
     raise TypeError(
         f"assert_circuit_depth does not support circuit type "
         f"{type(circuit).__qualname__!r}.\n"
-        "Supported frameworks: Qiskit, Cirq, Amazon Braket."
+        "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane."
     )
 
 
@@ -216,4 +280,58 @@ def _get_width(circuit: object) -> int:
         f"assert_circuit_width does not support circuit type "
         f"{type(circuit).__qualname__!r}.\n"
         "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane."
+    )
+
+
+def assert_circuit_is_clifford(circuit: object) -> None:
+    """Assert a circuit uses only Clifford gates (H, S, S†, X, Y, Z, CNOT, CZ, SWAP).
+
+    Clifford circuits are classically efficiently simulable.
+    Supported: Qiskit, Cirq.
+
+    Raises:
+        AssertionError:      If non-Clifford gates found.
+        NotImplementedError: If framework not supported.
+
+    Example::
+
+        def test_is_clifford():
+            from qiskit import QuantumCircuit
+            from pytest_quantum import assert_circuit_is_clifford
+
+            qc = QuantumCircuit(2)
+            qc.h(0)
+            qc.cx(0, 1)
+            assert_circuit_is_clifford(qc)
+    """
+    module = type(circuit).__module__
+    c: Any = circuit
+
+    if module.startswith("qiskit"):
+        ops = c.count_ops()
+        non_clifford = sorted(g for g in ops if g not in _CLIFFORD_QISKIT)
+        if non_clifford:
+            raise AssertionError(
+                f"Circuit contains non-Clifford gates: {non_clifford}\n"
+                f"  Clifford set: "
+                f"{sorted(g for g in _CLIFFORD_QISKIT if g not in ('measure', 'barrier', 'reset'))}"
+            )
+        return
+
+    if module.startswith("cirq"):
+        non_clifford = set()
+        for moment in c:
+            for op in moment.operations:
+                name = str(op.gate).lower()
+                if name not in _CLIFFORD_CIRQ:
+                    non_clifford.add(str(op.gate))
+        if non_clifford:
+            raise AssertionError(
+                f"Circuit contains non-Clifford gates: {sorted(non_clifford)}"
+            )
+        return
+
+    raise NotImplementedError(
+        f"assert_circuit_is_clifford supports Qiskit and Cirq. "
+        f"Got: {type(circuit).__qualname__!r}"
     )

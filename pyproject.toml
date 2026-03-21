@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-quantum"
-version = "0.1.1"
+version = "0.2.0"
 description = "A cross-framework pytest plugin for quantum program testing"
 readme = "README.md"
 license = "MIT"
@@ -124,10 +124,15 @@ ignore = [
     "E501",   # line length handled by formatter
     "B008",   # function-in-default — conflicts with pytest fixtures
     "PT013",  # pytest TYPE_CHECKING imports are intentional (typing only)
+    "RUF001", # Greek letters (ρ, σ) are intentional quantum notation
+    "RUF002", # Greek letters in docstrings are intentional quantum notation
+    "RUF003", # Greek letters in comments are intentional quantum notation
+    "ANN401", # Any is required for cross-framework quantum SDK heterogeneous inputs
+    "SIM105", # contextlib.suppress is less readable for quantum SDK try/except patterns
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**/*.py"                    = ["ANN", "S101", "PT011", "TC002", "RUF059"]
+"tests/**/*.py"                    = ["ANN", "S101", "PT011", "TC002", "RUF059", "TC003"]
 "src/pytest_quantum/__init__.py"   = ["F401", "E402"]
 "src/pytest_quantum/plugin.py"     = ["ANN201"]  # fixture return types use Any
 
