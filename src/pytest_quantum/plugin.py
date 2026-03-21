@@ -188,7 +188,9 @@ def aer_noise_simulator() -> object:
 
             sim = aer_noise_simulator(error_rate=0.01)
             qc = QuantumCircuit(2)
-            qc.h(0); qc.cx(0, 1); qc.measure_all()
+            qc.h(0)
+            qc.cx(0, 1)
+            qc.measure_all()
             counts = sim.run(transpile(qc, sim), shots=2000).result().get_counts()
 
             # With 1% noise, distribution is still close to Bell — use wider tolerance
@@ -209,8 +211,12 @@ def aer_noise_simulator() -> object:
         single_qubit_error = depolarizing_error(error_rate, 1)
         # Two-qubit gate error (typically ~10x higher)
         two_qubit_error = depolarizing_error(min(error_rate * 10, 1.0), 2)
-        noise_model.add_all_qubit_quantum_error(single_qubit_error, ["h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "u"])
-        noise_model.add_all_qubit_quantum_error(two_qubit_error, ["cx", "cz", "cy", "swap"])
+        noise_model.add_all_qubit_quantum_error(
+            single_qubit_error, ["h", "x", "y", "z", "s", "t", "rx", "ry", "rz", "u"]
+        )
+        noise_model.add_all_qubit_quantum_error(
+            two_qubit_error, ["cx", "cz", "cy", "swap"]
+        )
         return AerSimulator(noise_model=noise_model)
 
     return make_simulator
@@ -229,6 +235,7 @@ def cirq_simulator() -> object:
 
         def test_cirq(cirq_simulator):
             import cirq
+
             q = cirq.LineQubit.range(1)
             circuit = cirq.Circuit(cirq.H(q[0]))
             sv = cirq_simulator.simulate(circuit).final_state_vector
@@ -253,6 +260,7 @@ def braket_simulator() -> object:
 
         def test_braket(braket_simulator):
             from braket.circuits import Circuit
+
             circ = Circuit().h(0).cnot(0, 1)
             circ.measure_all()
             counts = braket_simulator.run(circ, shots=1000).result().measurement_counts
@@ -305,6 +313,7 @@ def graphix_backend() -> _GraphixBackend:
 
         def test_graphix(graphix_backend):
             from graphix.transpiler import Circuit
+
             circuit = Circuit(1)
             circuit.h(0)
             pattern = circuit.transpile().pattern
@@ -331,6 +340,7 @@ def pennylane_device() -> Callable[..., Any]:
 
         def test_pl(pennylane_device):
             import pennylane as qml
+
             dev = pennylane_device(wires=2)
 
             @qml.qnode(dev)

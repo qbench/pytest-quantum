@@ -23,7 +23,9 @@ class TestMarkerRegistration:
         result = pytester.runpytest("--strict-markers", "-v")
         result.assert_outcomes(passed=1)
 
-    def test_quantum_slow_marker_skipped_by_default(self, pytester: pytest.Pytester) -> None:
+    def test_quantum_slow_marker_skipped_by_default(
+        self, pytester: pytest.Pytester
+    ) -> None:
         pytester.makepyfile("""
             import pytest
 
@@ -76,7 +78,9 @@ class TestCliOptions:
         result = pytester.runpytest("--help")
         result.stdout.fnmatch_lines(["*--quantum-shots*"])
 
-    def test_quantum_significance_option_exists(self, pytester: pytest.Pytester) -> None:
+    def test_quantum_significance_option_exists(
+        self, pytester: pytest.Pytester
+    ) -> None:
         result = pytester.runpytest("--help")
         result.stdout.fnmatch_lines(["*--quantum-significance*"])
 

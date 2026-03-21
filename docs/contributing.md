@@ -1,6 +1,6 @@
 # Contributing
 
-Full setup and contribution guide is in [CONTRIBUTING.md](https://github.com/qbench/pytest-quantum/blob/main/CONTRIBUTING.md) on GitHub.
+Full setup and contribution guide is in [CONTRIBUTING.md](https://github.com/qbench/pytest-quantum/blob/master/CONTRIBUTING.md) on GitHub.
 
 ## Quick reference
 
