@@ -1,0 +1,162 @@
+[build-system]
+requires = ["hatchling>=1.27"]
+build-backend = "hatchling.build"
+
+[project]
+name = "pytest-quantum"
+version = "0.1.0"
+description = "A cross-framework pytest plugin for quantum program testing"
+readme = "README.md"
+license = "MIT"
+authors = [{ name = "Tejas" }]
+requires-python = ">=3.11"
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Framework :: Pytest",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Topic :: Scientific/Engineering :: Physics",
+    "Topic :: Software Development :: Testing",
+]
+keywords = [
+    "pytest",
+    "quantum",
+    "testing",
+    "qiskit",
+    "cirq",
+    "braket",
+    "pennylane",
+    "graphix",
+]
+dependencies = [
+    "pytest>=8.0",
+    "numpy>=2.0",
+    "scipy>=1.13",
+]
+
+[project.optional-dependencies]
+qiskit   = ["qiskit>=1.0", "qiskit-aer>=0.15"]
+cirq     = ["cirq-core>=1.3"]
+braket   = ["amazon-braket-sdk>=1.80", "amazon-braket-default-simulator>=1.23"]
+graphix  = ["graphix>=0.3"]
+pennylane = ["pennylane>=0.38"]
+qcec     = ["mqt.qcec>=2.0"]
+all = [
+    "pytest-quantum[qiskit]",
+    "pytest-quantum[cirq]",
+    "pytest-quantum[braket]",
+    "pytest-quantum[graphix]",
+    "pytest-quantum[pennylane]",
+    "pytest-quantum[qcec]",
+]
+
+[project.urls]
+Homepage      = "https://github.com/qbench/pytest-quantum"
+Documentation = "https://pytest-quantum.readthedocs.io"
+Issues        = "https://github.com/qbench/pytest-quantum/issues"
+
+# pytest auto-discovers the plugin via this entry point on install
+[project.entry-points.pytest11]
+quantum = "pytest_quantum.plugin"
+
+[dependency-groups]
+docs = [
+    "sphinx>=8.0",
+    "furo>=2024.8",
+    "myst-parser>=4.0",
+    "sphinx-autodoc-typehints>=2.0",
+    "sphinx-copybutton>=0.5",
+]
+dev = [
+    "pytest>=8.0",
+    "pytest-cov>=6.0",
+    "ruff>=0.9",
+    "mypy>=1.15",
+    "qiskit>=1.0",
+    "qiskit-aer>=0.15",
+    "cirq-core>=1.3",
+    "amazon-braket-sdk>=1.80",
+    "amazon-braket-default-simulator>=1.23",
+    "graphix>=0.3",
+    "pennylane>=0.38",
+    "mqt.qcec>=2.0",
+]
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/pytest_quantum"]
+
+# ---------------------------------------------------------------------------
+# pytest
+# ---------------------------------------------------------------------------
+[tool.pytest.ini_options]
+addopts   = ["-p", "pytester", "--strict-markers", "-ra"]
+testpaths = ["tests"]
+
+# ---------------------------------------------------------------------------
+# ruff — linter + formatter (replaces black + isort + flake8)
+# ---------------------------------------------------------------------------
+[tool.ruff]
+line-length    = 88
+target-version = "py311"
+src            = ["src"]
+
+[tool.ruff.lint]
+select = [
+    "E",   "W",   # pycodestyle
+    "F",          # pyflakes
+    "UP",         # pyupgrade
+    "B",          # bugbear
+    "SIM",        # simplify
+    "I",          # isort
+    "C4",         # comprehensions
+    "PT",         # pytest-style
+    "RUF",        # ruff-native
+    "NPY",        # numpy — catches np.float_, np.bool_, etc.
+    "ANN",        # annotation coverage
+    "TCH",        # move type-only imports under TYPE_CHECKING
+]
+ignore = [
+    "E501",   # line length handled by formatter
+    "B008",   # function-in-default — conflicts with pytest fixtures
+    "PT013",  # pytest TYPE_CHECKING imports are intentional (typing only)
+]
+
+[tool.ruff.lint.per-file-ignores]
+"tests/**/*.py"                    = ["ANN", "S101", "PT011", "TC002", "RUF059"]
+"src/pytest_quantum/__init__.py"   = ["F401", "E402"]
+"src/pytest_quantum/plugin.py"     = ["ANN201"]  # fixture return types use Any
+
+[tool.ruff.lint.isort]
+known-first-party        = ["pytest_quantum"]
+force-sort-within-sections = true
+
+[tool.ruff.format]
+quote-style            = "double"
+indent-style           = "space"
+docstring-code-format  = true
+
+# ---------------------------------------------------------------------------
+# mypy — strict
+# ---------------------------------------------------------------------------
+[tool.mypy]
+python_version       = "3.11"
+strict               = true
+warn_return_any      = true
+warn_unused_configs  = true
+ignore_missing_imports = true   # optional quantum SDKs may not be installed
+
+# ---------------------------------------------------------------------------
+# coverage
+# ---------------------------------------------------------------------------
+[tool.coverage.run]
+source = ["pytest_quantum"]
+branch = true
+
+[tool.coverage.report]
+exclude_lines = ["pragma: no cover", "if TYPE_CHECKING:", "raise NotImplementedError", "@overload"]
+show_missing  = true
