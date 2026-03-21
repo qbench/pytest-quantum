@@ -227,11 +227,34 @@ def _partial_trace(
     n_qubits: int,
     keep: list[int],
 ) -> NDArray[np.complex128]:
+    """Partial trace via einsum: correct for any subset of qubits.
+
+    Convention: qubit 0 is most significant (big-endian / leftmost in
+    |q0 q1 q2...>).
+    """
+    import string
+
     trace_out = [i for i in range(n_qubits) if i not in keep]
-    rho_t = rho.reshape([2] * (2 * n_qubits))
-    current_n = n_qubits
-    for qubit in sorted(trace_out, reverse=True):
-        rho_t = np.trace(rho_t, axis1=qubit, axis2=qubit + current_n)
-        current_n -= 1
-    d_out = 2 ** len(keep)
-    return rho_t.reshape(d_out, d_out)
+
+    # Reshape rho from (2^n, 2^n) to (2, 2, ..., 2) with 2*n indices.
+    # First n indices are "row" qubits, last n are "col" qubits.
+    rho_tensor = rho.reshape([2] * (2 * n_qubits))
+
+    # Build einsum labels: row labels a,b,c,... and col labels p,q,r,...
+    # (use two non-overlapping ranges of the alphabet)
+    row_labels = list(string.ascii_lowercase[:n_qubits])
+    col_labels = list(string.ascii_lowercase[n_qubits : 2 * n_qubits])
+
+    # For traced-out qubits: force row_label == col_label (diagonal trace)
+    for q in trace_out:
+        col_labels[q] = row_labels[q]
+
+    input_str = "".join(row_labels) + "".join(col_labels)
+    out_row = "".join(row_labels[q] for q in sorted(keep))
+    out_col = "".join(col_labels[q] for q in sorted(keep))
+    output_str = out_row + out_col
+
+    reduced = np.einsum(input_str + "->" + output_str, rho_tensor)
+
+    d_keep = 2 ** len(keep)
+    return reduced.reshape(d_keep, d_keep)

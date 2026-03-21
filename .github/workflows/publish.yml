@@ -82,11 +82,32 @@ jobs:
 
           # 1. Public API present
           required = [
+              # v0.1
               "assert_unitary", "assert_circuits_equivalent",
               "assert_measurement_distribution", "assert_counts_close",
               "assert_circuit_depth", "assert_circuit_width",
               "assert_gate_count", "assert_states_close",
               "assert_state_fidelity_above",
+              # v0.2
+              "assert_density_matrix_close", "assert_trace_distance_below",
+              "assert_purity_above", "assert_partial_trace_close",
+              "assert_expectation_value_close", "assert_ground_state_energy_close",
+              "assert_sampler_distribution", "assert_estimator_close",
+              "assert_unitary_snapshot", "assert_distribution_snapshot",
+              "assert_circuit_is_clifford",
+              # v0.3
+              "assert_hermitian", "assert_positive_semidefinite", "assert_commutes_with",
+              "assert_channel_is_cptp", "assert_process_fidelity_above", "assert_noise_fidelity_above",
+              "assert_entanglement_entropy_below", "assert_bloch_sphere_close", "assert_schmidt_rank_at_most",
+              "assert_hellinger_close", "assert_kl_divergence_below", "assert_cross_entropy_below",
+              "assert_qasm_roundtrip", "assert_has_diagram",
+              "assert_transpilation_preserves_semantics",
+              "assert_stim_logical_error_rate_below",
+              "assert_stim_detector_error_rate_below",
+              "assert_stabilizer_state",
+              # random
+              "random_statevector", "random_density_matrix", "random_unitary",
+              "random_kraus_channel", "depolarizing_kraus",
           ]
           missing = [n for n in required if not hasattr(pytest_quantum, n)]
           assert not missing, f"Missing from public API: {missing}"

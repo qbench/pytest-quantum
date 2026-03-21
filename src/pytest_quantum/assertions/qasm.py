@@ -9,14 +9,12 @@ def assert_qasm_roundtrip(
     atol: float = 1e-6,
     allow_global_phase: bool = True,
 ) -> None:
-    """Assert that a circuit survives an OpenQASM export/import round-trip.
+    """Assert that a circuit survives an export/import round-trip.
 
-    Exports the circuit to QASM, re-imports it, and verifies the unitary
-    is unchanged.
-
-    Supported frameworks:
-    - Qiskit: uses ``qiskit.qasm3.dumps`` / ``qasm3.loads``
-    - Cirq:   uses ``cirq.qasm`` / ``cirq.contrib.qasm_import.circuit_from_qasm``
+    For Qiskit: uses OpenQASM 3 (``qiskit.qasm3.dumps`` / ``qasm3.loads``).
+    For Cirq:   uses Cirq's native JSON serialisation (``cirq.to_json`` /
+                ``cirq.read_json``), which provides an exact identity
+                round-trip for all standard Cirq circuits.
 
     Args:
         circuit:           Qiskit QuantumCircuit or cirq.Circuit.
@@ -26,7 +24,7 @@ def assert_qasm_roundtrip(
     Raises:
         AssertionError:      If re-imported circuit has a different unitary.
         NotImplementedError: For unsupported frameworks.
-        ImportError:         If the required QASM import package is missing.
+        ImportError:         If the required package is missing.
     """
     module = type(circuit).__module__
 
@@ -52,15 +50,13 @@ def assert_qasm_roundtrip(
             from pytest_quantum.converters.to_unitary import to_unitary
 
             original_U = to_unitary(circuit)
-            qasm_str = cirq.qasm(circuit)  # type: ignore[arg-type]
-            from cirq.contrib.qasm_import import (
-                circuit_from_qasm,  # type: ignore[import-untyped]
-            )
-
-            reimported = circuit_from_qasm(qasm_str)
+            # Use Cirq's native JSON serialisation for a true identity round-trip.
+            # cirq.contrib.qasm_import is not available in modern Cirq.
+            json_str = cirq.to_json(circuit)  # type: ignore[arg-type]
+            reimported = cirq.read_json(json_text=json_str)
         except ImportError as exc:
             raise ImportError(
-                "cirq is required for QASM round-trip: pip install cirq"
+                "cirq is required for Cirq round-trip: pip install cirq"
             ) from exc
 
     else:

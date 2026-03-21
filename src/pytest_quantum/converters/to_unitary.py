@@ -28,8 +28,11 @@ if TYPE_CHECKING:
 
 def _reverse_qubit_order(U: NDArray[np.complex128]) -> NDArray[np.complex128]:
     """Reverse qubit ordering convention (little-endian ↔ big-endian)."""
-    n = round(np.log2(U.shape[0]))
-    perm = [int(format(i, f"0{n}b")[::-1], 2) for i in range(2**n)]
+    d = U.shape[0]
+    n = round(np.log2(d))
+    if 2**n != d:
+        raise ValueError(f"Matrix dimension {d} is not a power of 2")
+    perm = [int(format(i, f"0{n}b")[::-1], 2) for i in range(d)]
     return U[np.ix_(perm, perm)]
 
 

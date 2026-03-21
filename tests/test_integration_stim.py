@@ -9,7 +9,13 @@ import pytest
 
 stim = pytest.importorskip("stim", reason="stim not installed")
 
-from pytest_quantum import assert_hellinger_close, assert_measurement_distribution
+from pytest_quantum import (
+    assert_hellinger_close,
+    assert_measurement_distribution,
+    assert_stabilizer_state,
+    assert_stim_detector_error_rate_below,
+    assert_stim_logical_error_rate_below,
+)
 
 # ---------------------------------------------------------------------------
 # stim_sampler fixture
@@ -82,3 +88,59 @@ def test_stim_all_zeros_circuit(stim_sampler):
     """)
     counts = stim_sampler(c, shots=100)
     assert counts == {"00": 100}
+
+
+# ---------------------------------------------------------------------------
+# New stim assertion tests
+# ---------------------------------------------------------------------------
+
+
+def test_assert_stim_logical_error_rate_below_repetition_code():
+    """Repetition code at low noise should have low logical error rate."""
+    c = stim.Circuit.generated(
+        "repetition_code:memory",
+        rounds=3,
+        distance=3,
+        after_clifford_depolarization=0.001,
+    )
+    # At p=0.001 and distance 3 the logical error rate should be well below 5%
+    assert_stim_logical_error_rate_below(c, max_error_rate=0.05, shots=2000, seed=42)
+
+
+def test_assert_stim_logical_error_rate_below_no_observables_raises():
+    """Circuit without observables should raise ValueError."""
+    c = stim.Circuit("""
+        H 0
+        CNOT 0 1
+        M 0 1
+    """)
+    with pytest.raises(ValueError, match="no observables"):
+        assert_stim_logical_error_rate_below(c, max_error_rate=0.1, shots=100)
+
+
+def test_assert_stim_detector_error_rate_below():
+    """Repetition code with low noise should have low detector error rate."""
+    c = stim.Circuit.generated(
+        "repetition_code:memory",
+        rounds=3,
+        distance=3,
+        after_clifford_depolarization=0.001,
+    )
+    # Mean detector error rate at p=0.001 should be well below 5%
+    assert_stim_detector_error_rate_below(c, max_error_rate=0.05, shots=2000, seed=0)
+
+
+def test_assert_stabilizer_state_bell():
+    """Bell state prepared by TableauSimulator should satisfy +XX and +ZZ."""
+    sim = stim.TableauSimulator()
+    sim.h(0)
+    sim.cnot(0, 1)
+    assert_stabilizer_state(sim, ["+XX", "+ZZ"])
+
+
+def test_assert_stabilizer_state_failure():
+    """Checking wrong stabilizers should raise AssertionError."""
+    sim = stim.TableauSimulator()
+    # |0> is stabilized by +Z, not +X
+    with pytest.raises(AssertionError, match="Stabilizer state check failed"):
+        assert_stabilizer_state(sim, ["+X"])

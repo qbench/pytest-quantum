@@ -427,3 +427,61 @@ def assert_circuit_is_clifford(circuit: object) -> None:
         f"assert_circuit_is_clifford supports Qiskit and Cirq (and also "
         f"Braket, PennyLane, Pytket). Got: {type(circuit).__qualname__!r}"
     )
+
+
+def assert_has_diagram(circuit: object, expected: str, *, strict: bool = False) -> None:
+    """Assert circuit's text representation contains expected pattern.
+
+    For Qiskit: uses ``circuit.draw('text')``.
+    For Cirq:   uses ``str(circuit)`` (``circuit.to_text_diagram()``).
+
+    Args:
+        circuit:  Any supported framework circuit.
+        expected: Expected string (exact if *strict* is ``True``, substring
+                  otherwise).
+        strict:   If ``True``, require exact match after stripping leading /
+                  trailing whitespace.  If ``False`` (default), just check
+                  that *expected* is a substring of the diagram.
+
+    Raises:
+        AssertionError:      If diagram doesn't match.
+        NotImplementedError: For frameworks without text diagram support.
+
+    Example::
+
+        from qiskit import QuantumCircuit
+        from pytest_quantum import assert_has_diagram
+
+        qc = QuantumCircuit(1)
+        qc.h(0)
+        assert_has_diagram(qc, "H")
+    """
+    module = type(circuit).__module__
+    c: Any = circuit
+
+    if module.startswith("qiskit"):
+        diagram = str(c.draw("text"))
+    elif module.startswith("cirq"):
+        diagram = str(c)
+    elif module.startswith("pytket"):
+        try:
+            diagram = str(c)
+        except Exception as exc:
+            raise NotImplementedError("pytket diagram not available") from exc
+    else:
+        raise NotImplementedError(
+            f"assert_has_diagram supports Qiskit and Cirq; got {module!r}"
+        )
+
+    if strict:
+        if diagram.strip() != expected.strip():
+            raise AssertionError(
+                f"Circuit diagram mismatch.\nExpected:\n{expected}\nGot:\n{diagram}"
+            )
+    else:
+        if expected not in diagram:
+            raise AssertionError(
+                f"Expected pattern not found in circuit diagram.\n"
+                f"Pattern: {expected!r}\n"
+                f"Diagram:\n{diagram}"
+            )
