@@ -1,0 +1,98 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+jobs:
+  # -------------------------------------------------------------------------
+  # Lint + type check (fast, runs on every push)
+  # -------------------------------------------------------------------------
+  lint:
+    name: Lint & type check
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+      - name: Ruff lint
+        run: uv run --group dev ruff check src/ tests/
+      - name: Ruff format check
+        run: uv run --group dev ruff format --check src/ tests/
+      - name: Mypy
+        run: uv run --group dev mypy src/
+
+  # -------------------------------------------------------------------------
+  # Core tests (no quantum SDK) — fast, runs on all platforms
+  # -------------------------------------------------------------------------
+  test-core:
+    name: Core tests (Python ${{ matrix.python-version }}, ${{ matrix.os }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+        python-version: ["3.11", "3.12", "3.13"]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: ${{ matrix.python-version }}
+      - name: Install core dependencies only
+        run: uv sync --no-group dev
+      - name: Run core tests
+        run: uv run pytest tests/test_stats.py tests/test_plugin.py tests/test_assertions_states.py tests/test_assertions_distributions.py -v --cov=pytest_quantum --cov-report=xml
+      - name: Upload coverage
+        uses: codecov/codecov-action@v5
+        if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
+        with:
+          files: ./coverage.xml
+
+  # -------------------------------------------------------------------------
+  # Framework integration tests — only on ubuntu, one Python version
+  # -------------------------------------------------------------------------
+  test-qiskit:
+    name: Qiskit integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Qiskit extras
+        run: uv sync --extra qiskit
+      - name: Run Qiskit tests
+        run: uv run pytest tests/ -v -m "quantum" --quantum-slow
+
+  test-cirq:
+    name: Cirq integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Cirq extras
+        run: uv sync --extra cirq
+      - name: Run Cirq tests
+        run: uv run pytest tests/ -v -m "quantum"
+
+  test-graphix:
+    name: Graphix integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Graphix extras
+        run: uv sync --extra graphix
+      - name: Run Graphix tests
+        run: uv run pytest tests/ -v -m "quantum"
