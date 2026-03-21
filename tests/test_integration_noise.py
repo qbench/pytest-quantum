@@ -85,9 +85,9 @@ class TestAerNoiseSimulator:
         qc.cx(0, 1)
         qc.measure_all()
 
-        counts = sim.run(transpile(qc, sim), shots=4000).result().get_counts()
+        counts = sim.run(transpile(qc, sim), shots=8000).result().get_counts()
         assert_measurement_distribution(
             counts,
             expected_probs={"00": 0.5, "11": 0.5},
-            significance=0.01,
+            significance=0.001,
         )
