@@ -8,7 +8,7 @@ version = "0.1.0"
 description = "A cross-framework pytest plugin for quantum program testing"
 readme = "README.md"
 license = "MIT"
-authors = [{ name = "Tejas" }]
+authors = [{ name = "Tejas", email = "tejasghatule12345@gmail.com" }]
 requires-python = ">=3.11"
 classifiers = [
     "Development Status :: 3 - Alpha",
