@@ -1,0 +1,4 @@
+# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/stats/__init__.py
+# hypothesis_version: 6.151.9
+
+['chi_square_test', 'fidelity', 'min_shots', 'recommended_shots', 'tvd', 'tvd_from_counts']

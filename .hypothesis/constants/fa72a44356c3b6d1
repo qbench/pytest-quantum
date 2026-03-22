@@ -1,0 +1,4 @@
+# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/channels.py
+# hypothesis_version: 6.151.9
+
+[1e-08, 0.99, 'F', 'fro', 'op_a', 'op_b', 'qiskit']

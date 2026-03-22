@@ -1,0 +1,4 @@
+# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/plugin.py
+# hypothesis_version: 6.151.9
+
+[0.01, 1.0, 1024, 100000, '--quantum-real', '--quantum-shots', '--quantum-slow', '0', '1', '==', 'BRAKET_DEVICE_ARN', 'IBM_QUANTUM_TOKEN', 'Left circuit:', 'N', 'P', 'Right circuit:', 'aer_simulator', 'benchmark', 'braket', 'braket_simulator', 'cirq', 'cirq_simulator', 'cx', 'cy', 'cz', 'default.qubit', 'function', 'graphix', 'h', 'ibm_quantum', 'ket', 'markers', 'n_qubits', 'pennylane', 'pennylane_device', 'pip install pytket', 'pip install qutip', 'pip install stim', 'pytket', 'qiskit', 'qiskit_aer', 'qiskit_ibm_runtime', 'quantum', 'quantum_backend_name', 'quantum_backends', 'quantum_real', 'quantum_shots', 'quantum_significance', 'quantum_slow', 'qutip', 'rx', 'ry', 'rz', 's', 'session', 'statevector', 'stim', 'stim_sampler', 'store', 'store_true', 'swap', 't', 'tequila', 'text', 'u', 'x', 'y', 'z']

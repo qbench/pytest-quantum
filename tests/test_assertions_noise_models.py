@@ -119,14 +119,18 @@ def test_amplitude_damping_wrong_gamma_fails():
     gamma_actual = 0.20
     gamma_expected = 0.80
     with pytest.raises(AssertionError, match="Amplitude damping parameter mismatch"):
-        assert_amplitude_damping_channel(amplitude_damping_kraus(gamma_actual), gamma_expected)
+        assert_amplitude_damping_channel(
+            amplitude_damping_kraus(gamma_actual), gamma_expected
+        )
 
 
 def test_amplitude_damping_wrong_gamma_shows_values():
     gamma_actual = 0.10
     gamma_expected = 0.90
     with pytest.raises(AssertionError, match="Estimated gamma"):
-        assert_amplitude_damping_channel(amplitude_damping_kraus(gamma_actual), gamma_expected)
+        assert_amplitude_damping_channel(
+            amplitude_damping_kraus(gamma_actual), gamma_expected
+        )
 
 
 def test_amplitude_damping_empty_list_raises():
@@ -328,7 +332,9 @@ def test_diamond_norm_depolarizing_vs_identity_large_p_fails():
     kraus_dep = depolarizing_kraus(p)
     kraus_id = [I2]
     with pytest.raises(AssertionError, match="Diamond-norm distance"):
-        assert_channel_diamond_norm_below(kraus_dep, kraus_id, max_diamond_norm=0.0, atol=1e-6)
+        assert_channel_diamond_norm_below(
+            kraus_dep, kraus_id, max_diamond_norm=0.0, atol=1e-6
+        )
 
 
 def test_diamond_norm_empty_list_raises():

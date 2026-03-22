@@ -313,9 +313,7 @@ def assert_pec_reduces_error(
     )
 
     if not isinstance(float(mitigated), float):
-        raise AssertionError(
-            f"PEC did not return a valid float. Got: {mitigated!r}"
-        )
+        raise AssertionError(f"PEC did not return a valid float. Got: {mitigated!r}")
 
     return float(unmitigated), float(mitigated)
 
@@ -440,14 +438,12 @@ def assert_error_mitigation_benchmark(
             # Default: zne_richardson (and any unknown method falls back here)
             factory = zne.RichardsonFactory(scale_factors)
 
-        mitigated = float(zne.execute_with_zne(circuit, noisy_executor, factory=factory))
+        mitigated = float(
+            zne.execute_with_zne(circuit, noisy_executor, factory=factory)
+        )
         results[method] = mitigated
 
-    failed = {
-        name: val
-        for name, val in results.items()
-        if abs(val - ideal) > atol
-    }
+    failed = {name: val for name, val in results.items() if abs(val - ideal) > atol}
 
     if failed:
         lines = [

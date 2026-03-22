@@ -177,7 +177,9 @@ def assert_cross_platform_equivalent(
             f"  Hint: check that both circuits have the same number of qubits."
         )
 
-    if _unitaries_equivalent(u_a, u_b, atol=atol, allow_global_phase=allow_global_phase):
+    if _unitaries_equivalent(
+        u_a, u_b, atol=atol, allow_global_phase=allow_global_phase
+    ):
         return
 
     max_diff = float(np.max(np.abs(u_a - u_b)))

@@ -1,0 +1,4 @@
+# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/density.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1e-10, 1e-06, 0.01, 0.5, 0.95, '->', 'rho', 'sigma']

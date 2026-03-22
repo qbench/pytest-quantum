@@ -905,6 +905,7 @@ def ionq_backend(request: pytest.FixtureRequest) -> Any:
 
         def test_on_ionq(ionq_backend):
             from qiskit import QuantumCircuit
+
             qc = QuantumCircuit(1, 1)
             qc.h(0)
             qc.measure(0, 0)
@@ -946,8 +947,7 @@ def quantinuum_backend(request: pytest.FixtureRequest) -> Any:
 
     Example::
 
-        def test_on_quantinuum(quantinuum_backend):
-            ...
+        def test_on_quantinuum(quantinuum_backend): ...
     """
     if not request.config.getoption("--quantum-real", default=False):
         pytest.skip("--quantum-real not set")
@@ -967,9 +967,7 @@ def quantinuum_backend(request: pytest.FixtureRequest) -> Any:
     try:
         from pytket.extensions.quantinuum import QuantinuumBackend
     except ImportError:
-        pytest.skip(
-            "pytket-quantinuum not installed: pip install pytket-quantinuum"
-        )
+        pytest.skip("pytket-quantinuum not installed: pip install pytket-quantinuum")
 
     try:
         backend = QuantinuumBackend(

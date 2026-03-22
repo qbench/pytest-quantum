@@ -95,7 +95,9 @@ def assert_depolarizing_channel(
         ValueError: If ``channel_matrices`` is empty or operators are non-square / mismatched.
     """
     if not channel_matrices:
-        raise ValueError("channel_matrices must be a non-empty list of Kraus operators.")
+        raise ValueError(
+            "channel_matrices must be a non-empty list of Kraus operators."
+        )
     ops: list[NDArray[np.complex128]] = [
         np.asarray(K, dtype=np.complex128) for K in channel_matrices
     ]
@@ -159,7 +161,9 @@ def assert_amplitude_damping_channel(
         ValueError:     If operators are not 2x2 or the list is empty.
     """
     if not channel_matrices:
-        raise ValueError("channel_matrices must be a non-empty list of Kraus operators.")
+        raise ValueError(
+            "channel_matrices must be a non-empty list of Kraus operators."
+        )
     ops: list[NDArray[np.complex128]] = [
         np.asarray(K, dtype=np.complex128) for K in channel_matrices
     ]
@@ -217,7 +221,9 @@ def assert_dephasing_channel(
         ValueError:     If operators are not 2x2 or the list is empty.
     """
     if not channel_matrices:
-        raise ValueError("channel_matrices must be a non-empty list of Kraus operators.")
+        raise ValueError(
+            "channel_matrices must be a non-empty list of Kraus operators."
+        )
     ops: list[NDArray[np.complex128]] = [
         np.asarray(K, dtype=np.complex128) for K in channel_matrices
     ]
@@ -294,7 +300,9 @@ def assert_no_leakage(
             f"computational_subspace_dim must be >= 1, got {computational_subspace_dim}."
         )
 
-    pop_in_subspace = float(np.real(np.trace(rho[:computational_subspace_dim, :computational_subspace_dim])))
+    pop_in_subspace = float(
+        np.real(np.trace(rho[:computational_subspace_dim, :computational_subspace_dim]))
+    )
     leakage = 1.0 - pop_in_subspace
     leakage = max(0.0, leakage)  # clamp numerical noise
 
@@ -335,7 +343,9 @@ def assert_channel_preserves_trace(
             operators are not square.
     """
     if not channel_matrices:
-        raise ValueError("channel_matrices must be a non-empty list of Kraus operators.")
+        raise ValueError(
+            "channel_matrices must be a non-empty list of Kraus operators."
+        )
     ops: list[NDArray[np.complex128]] = [
         np.asarray(K, dtype=np.complex128) for K in channel_matrices
     ]
@@ -442,7 +452,9 @@ def assert_channel_diamond_norm_below(
         objective = cp.Minimize(cp.real(cp.trace(W0)) + cp.real(cp.trace(W1)))
         prob = cp.Problem(objective, constraints)
         prob.solve(solver=cp.SCS, eps=1e-8)
-        estimated_distance = float(prob.value) if prob.value is not None else float("inf")
+        estimated_distance = (
+            float(prob.value) if prob.value is not None else float("inf")
+        )
         method = "SDP (cvxpy)"
     except ImportError:
         # Fallback: operator norm of Choi difference

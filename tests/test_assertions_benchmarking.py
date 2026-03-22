@@ -55,11 +55,15 @@ def _make_backend_with_props(
     backend = MagicMock()
     backend.name = name
     backend.num_qubits = num_qubits
-    backend.properties.return_value = _make_props_with_gate(gate_name, qubits, error_rate)
+    backend.properties.return_value = _make_props_with_gate(
+        gate_name, qubits, error_rate
+    )
     return backend
 
 
-def _make_simple_backend(counts: dict[str, int], *, name: str = "mock_backend") -> MagicMock:
+def _make_simple_backend(
+    counts: dict[str, int], *, name: str = "mock_backend"
+) -> MagicMock:
     """Return a minimal mock backend whose run() always returns *counts*."""
     job = MagicMock()
     result = MagicMock()
@@ -113,7 +117,9 @@ def test_gate_fidelity_fails_bad_fidelity() -> None:
 def test_gate_fidelity_fail_message_includes_backend_name() -> None:
     from pytest_quantum.assertions.benchmarking import assert_gate_fidelity_above
 
-    backend = _make_backend_with_props("cx", [0, 1], error_rate=0.05, name="ibm_sherbrooke")
+    backend = _make_backend_with_props(
+        "cx", [0, 1], error_rate=0.05, name="ibm_sherbrooke"
+    )
     with pytest.raises(AssertionError, match="ibm_sherbrooke"):
         assert_gate_fidelity_above(backend, "cx", [0, 1], target_fidelity=0.99)
 
@@ -192,10 +198,13 @@ def test_quantum_volume_passes_with_high_hop() -> None:
 
     # Patch _compute_heavy_outputs so all outputs are "heavy".
     # Use low confidence (0.5) so the binomial test passes with few mock trials.
-    with patch(
-        "pytest_quantum.assertions.benchmarking._compute_heavy_outputs",
-        return_value={0, 1},
-    ), patch("qiskit.transpile", side_effect=lambda qc, *a, **kw: qc):
+    with (
+        patch(
+            "pytest_quantum.assertions.benchmarking._compute_heavy_outputs",
+            return_value={0, 1},
+        ),
+        patch("qiskit.transpile", side_effect=lambda qc, *a, **kw: qc),
+    ):
         qv = assert_quantum_volume(
             backend, target_qv=2, num_trials=5, shots=1024, confidence=0.5
         )
@@ -208,10 +217,13 @@ def test_quantum_volume_returns_int() -> None:
 
     backend = _make_qv_backend_passing(width=1, shots=64)
 
-    with patch(
-        "pytest_quantum.assertions.benchmarking._compute_heavy_outputs",
-        return_value=set(range(2)),
-    ), patch("qiskit.transpile", side_effect=lambda qc, *a, **kw: qc):
+    with (
+        patch(
+            "pytest_quantum.assertions.benchmarking._compute_heavy_outputs",
+            return_value=set(range(2)),
+        ),
+        patch("qiskit.transpile", side_effect=lambda qc, *a, **kw: qc),
+    ):
         result = assert_quantum_volume(
             backend, target_qv=2, num_trials=3, shots=64, confidence=0.5
         )
@@ -479,12 +491,17 @@ def test_qv_uses_backend_run_for_non_ibm() -> None:
 
     backend = _make_simple_backend({"0": 64, "1": 64})
 
-    with patch(
-        "pytest_quantum.assertions.benchmarking._compute_heavy_outputs",
-        return_value={0, 1},
-    ), patch("qiskit.transpile", side_effect=lambda qc, *a, **kw: qc):
+    with (
+        patch(
+            "pytest_quantum.assertions.benchmarking._compute_heavy_outputs",
+            return_value={0, 1},
+        ),
+        patch("qiskit.transpile", side_effect=lambda qc, *a, **kw: qc),
+    ):
         # Should not raise; IBM path should be skipped. Use low confidence for mock.
-        assert_quantum_volume(backend, target_qv=2, num_trials=3, shots=128, confidence=0.5)
+        assert_quantum_volume(
+            backend, target_qv=2, num_trials=3, shots=128, confidence=0.5
+        )
 
     assert backend.run.called
 

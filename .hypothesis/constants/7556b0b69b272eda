@@ -1,0 +1,4 @@
+# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/noise_models.py
+# hypothesis_version: 6.151.9
+
+[0.0, 1e-08, 1e-06, 0.0001, 0.01, 0.5, 1.0, 2.0, 'F', 'SDP (cvxpy)', 'fro', 'inf']

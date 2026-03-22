@@ -67,6 +67,7 @@ def assert_quantum_volume(
         from pytest_quantum.assertions.benchmarking import assert_quantum_volume
         from qiskit_aer import AerSimulator
 
+
         def test_simulator_qv():
             backend = AerSimulator()
             qv = assert_quantum_volume(backend, target_qv=4, num_trials=20)
@@ -112,15 +113,17 @@ def assert_quantum_volume(
             qc = _build_qv_circuit(width, QuantumCircuit, random_unitary)
 
             # Run and collect counts
-            counts = _run_circuit(qc, backend, shots=shots, is_ibm=is_ibm,
-                                  qk_transpile=qk_transpile)
+            counts = _run_circuit(
+                qc, backend, shots=shots, is_ibm=is_ibm, qk_transpile=qk_transpile
+            )
 
             # Compute ideal heavy outputs via statevector simulation
             heavy_outputs = _compute_heavy_outputs(qc)
 
             # Count how many measured shots fell on heavy outputs
             heavy_count = sum(
-                cnt for bitstr, cnt in counts.items()
+                cnt
+                for bitstr, cnt in counts.items()
                 if _bitstr_to_int(bitstr, width) in heavy_outputs
             )
             hop = heavy_count / shots
@@ -129,7 +132,9 @@ def assert_quantum_volume(
 
         # One-sided binomial test: H0 = HOP <= 2/3
         hop_rate = hop_successes / num_trials
-        binom_result = stats.binomtest(hop_successes, num_trials, p=2 / 3, alternative="greater")
+        binom_result = stats.binomtest(
+            hop_successes, num_trials, p=2 / 3, alternative="greater"
+        )
         p_value = float(binom_result.pvalue)
         passes = (1 - p_value) >= confidence
 
@@ -196,8 +201,11 @@ def assert_randomized_benchmarking(
 
     Example::
 
-        from pytest_quantum.assertions.benchmarking import assert_randomized_benchmarking
+        from pytest_quantum.assertions.benchmarking import (
+            assert_randomized_benchmarking,
+        )
         from qiskit_aer import AerSimulator
+
 
         def test_rb_fidelity():
             backend = AerSimulator()
@@ -235,8 +243,9 @@ def assert_randomized_benchmarking(
         seq_survival: list[float] = []
         for _ in range(num_sequences):
             qc = _build_rb_circuit(qubit, length, QuantumCircuit)
-            counts = _run_circuit(qc, backend, shots=shots, is_ibm=is_ibm,
-                                  qk_transpile=qk_transpile)
+            counts = _run_circuit(
+                qc, backend, shots=shots, is_ibm=is_ibm, qk_transpile=qk_transpile
+            )
             total = sum(counts.values())
             # Survival = fraction of |0⟩ on the target qubit
             zero_count = _count_zero_on_qubit(counts, qubit=0, total_qubits=1)
@@ -260,7 +269,13 @@ def assert_randomized_benchmarking(
         _a, p, _b = popt
     except (RuntimeError, ValueError):
         # Fall back to linear fit in log space
-        p = float(np.exp(float(np.polyfit(lengths_arr, np.log(np.clip(probs_arr, 1e-9, 1.0)), 1)[0])))
+        p = float(
+            np.exp(
+                float(
+                    np.polyfit(lengths_arr, np.log(np.clip(probs_arr, 1e-9, 1.0)), 1)[0]
+                )
+            )
+        )
 
     # Average gate fidelity for 1-qubit gates (d=2)
     fidelity = 1.0 - (1.0 - float(p)) / 2.0
@@ -324,6 +339,7 @@ def assert_t1_above(
 
         from pytest_quantum.assertions.benchmarking import assert_t1_above
 
+
         def test_t1(ibm_backend):
             t1 = assert_t1_above(ibm_backend, qubit=0, target_t1_us=50.0)
             print(f"Measured T1: {t1:.1f} µs")
@@ -333,8 +349,7 @@ def assert_t1_above(
         from qiskit import transpile as qk_transpile
     except ImportError as exc:
         raise ImportError(
-            "qiskit is required for assert_t1_above. "
-            "Install with: pip install qiskit"
+            "qiskit is required for assert_t1_above. Install with: pip install qiskit"
         ) from exc
 
     backend_name = _backend_name(backend)
@@ -369,8 +384,9 @@ def assert_t1_above(
                 qc.delay(delay_dt, 0)
         qc.measure(0, 0)
 
-        counts = _run_circuit(qc, backend, shots=shots, is_ibm=is_ibm,
-                              qk_transpile=qk_transpile)
+        counts = _run_circuit(
+            qc, backend, shots=shots, is_ibm=is_ibm, qk_transpile=qk_transpile
+        )
         total = sum(counts.values())
         ones = counts.get("1", 0)
         survival_probs.append(ones / total if total > 0 else 0.0)
@@ -445,9 +461,12 @@ def assert_gate_fidelity_above(
 
         from pytest_quantum.assertions.benchmarking import assert_gate_fidelity_above
 
+
         def test_cx_fidelity(ibm_backend):
             fidelity = assert_gate_fidelity_above(
-                ibm_backend, gate_name="cx", qubits=[0, 1],
+                ibm_backend,
+                gate_name="cx",
+                qubits=[0, 1],
                 target_fidelity=0.99,
             )
             print(f"CX fidelity: {fidelity:.4f}")
@@ -683,30 +702,30 @@ def _build_rb_circuit(qubit: int, length: int, QuantumCircuit: Any) -> Any:
 # We use a simple gate-sequence table instead.
 _CLIFFORD_1Q_GATES: list[list[tuple[str, float]]] = [
     # Each entry: list of (gate_name, angle) pairs
-    [],                           # 0: I
-    [("h", 0)],                   # 1: H
-    [("s", 0)],                   # 2: S
-    [("sdg", 0)],                 # 3: Sdg
-    [("x", 0)],                   # 4: X
-    [("y", 0)],                   # 5: Y
-    [("z", 0)],                   # 6: Z
-    [("h", 0), ("s", 0)],         # 7: HS
-    [("h", 0), ("sdg", 0)],       # 8: HSdg
-    [("s", 0), ("h", 0)],         # 9: SH
-    [("sdg", 0), ("h", 0)],       # 10: SdgH
-    [("x", 0), ("h", 0)],         # 11: XH
-    [("y", 0), ("h", 0)],         # 12: YH
-    [("z", 0), ("h", 0)],         # 13: ZH
-    [("h", 0), ("x", 0)],         # 14: HX
-    [("h", 0), ("y", 0)],         # 15: HY
-    [("h", 0), ("z", 0)],         # 16: HZ
-    [("s", 0), ("x", 0)],         # 17: SX
-    [("s", 0), ("y", 0)],         # 18: SY
-    [("s", 0), ("z", 0)],         # 19: SZ
+    [],  # 0: I
+    [("h", 0)],  # 1: H
+    [("s", 0)],  # 2: S
+    [("sdg", 0)],  # 3: Sdg
+    [("x", 0)],  # 4: X
+    [("y", 0)],  # 5: Y
+    [("z", 0)],  # 6: Z
+    [("h", 0), ("s", 0)],  # 7: HS
+    [("h", 0), ("sdg", 0)],  # 8: HSdg
+    [("s", 0), ("h", 0)],  # 9: SH
+    [("sdg", 0), ("h", 0)],  # 10: SdgH
+    [("x", 0), ("h", 0)],  # 11: XH
+    [("y", 0), ("h", 0)],  # 12: YH
+    [("z", 0), ("h", 0)],  # 13: ZH
+    [("h", 0), ("x", 0)],  # 14: HX
+    [("h", 0), ("y", 0)],  # 15: HY
+    [("h", 0), ("z", 0)],  # 16: HZ
+    [("s", 0), ("x", 0)],  # 17: SX
+    [("s", 0), ("y", 0)],  # 18: SY
+    [("s", 0), ("z", 0)],  # 19: SZ
     [("h", 0), ("s", 0), ("h", 0)],  # 20: HSH
     [("s", 0), ("h", 0), ("s", 0)],  # 21: SHS
     [("sdg", 0), ("h", 0), ("sdg", 0)],  # 22: SdgHSdg
-    [("h", 0), ("sdg", 0), ("h", 0)],   # 23: HSdgH
+    [("h", 0), ("sdg", 0), ("h", 0)],  # 23: HSdgH
 ]
 
 # Cayley table for 1-qubit Cliffords: _CLIFFORD_COMPOSE[a][b] = a ∘ b
@@ -742,7 +761,9 @@ def _get_clifford_matrices() -> list[Any]:
     return matrices
 
 
-def _clifford_equal_up_to_phase(a: np.ndarray[Any, Any], b: np.ndarray[Any, Any]) -> bool:
+def _clifford_equal_up_to_phase(
+    a: np.ndarray[Any, Any], b: np.ndarray[Any, Any]
+) -> bool:
     """Return True if a == e^{iθ} b for some phase θ."""
     norm_b = np.linalg.norm(b)
     if norm_b < 1e-12:
@@ -779,7 +800,9 @@ def _apply_clifford_1q(qc: Any, idx: int) -> None:
         getattr(qc, gate_name)(0)
 
 
-def _count_zero_on_qubit(counts: dict[str, int], *, qubit: int, total_qubits: int) -> int:
+def _count_zero_on_qubit(
+    counts: dict[str, int], *, qubit: int, total_qubits: int
+) -> int:
     """Count shots where *qubit* measured 0 (Qiskit LSB bitstring convention)."""
     bit_pos = qubit  # LSB = qubit 0
     total = 0
