@@ -1,4 +1,0 @@
-# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/structure.py
-# hypothesis_version: 6.151.9
-
-['Adjoint(S)', 'Adjoint(SX)', 'Any', 'CNOT', 'CNot', 'CY', 'CZ', 'H', 'Hadamard', 'I', 'ISWAP', 'Identity', 'PauliX', 'PauliY', 'PauliZ', 'S', 'SWAP', 'SX', 'Si', 'Swap', 'V', 'Vi', 'X', 'Y', 'Z', 'barrier', 'braket', 'cirq', 'cnot', 'cx', 'cy', 'cz', 'depth', 'device', 'get', 'h', 'i', 'id', 'measure', 'pennylane', 'pytket', 'qiskit', 'reset', 'resources', 's', 'sdg', 'swap', 'sx', 'sxdg', 'text', 'x', 'y', 'z']

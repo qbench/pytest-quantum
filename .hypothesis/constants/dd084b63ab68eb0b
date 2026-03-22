@@ -1,4 +1,0 @@
-# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/hardware.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.01, 0.05, 0.15, 0.5, 1.0, 1.5, 5.0, 30.0, 300.0, 1024, 4096, '0', '<unknown>', 'CANCELLED', 'COMPLETED', 'DONE', 'ERROR', 'FAILED', '__dataclass_fields__', 'backend', 'c', 'c0', 'cp', 'cr', 'cs', 'csx', 'cx', 'cz', 'dcx', 'depth', 'ecr', 'gate_error', 'gates', 'get_counts', 'iswap', 'job_id', 'meas', 'measure', 'name', 'num_2q_gates', 'num_qubits', 'ops', 'properties', 'rxx', 'ryy', 'rzz', 'swap']

@@ -1,4 +1,0 @@
-# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/mitiq_assertions.py
-# hypothesis_version: 6.151.9
-
-[0.0, 0.1, 1.0, 2.0, 3.0, 100, 'ideal_state', 'linear', 'mitigated_dm', 'noisy_dm', 'poly2', 'richardson', 'zne_linear', 'zne_richardson']

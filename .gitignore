@@ -17,6 +17,7 @@ venv/
 # pytest
 .pytest_cache/
 .cache/
+.hypothesis/
 
 # mypy
 .mypy_cache/

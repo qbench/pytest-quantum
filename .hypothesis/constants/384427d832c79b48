@@ -1,4 +1,0 @@
-# file: /Users/ghatu/Desktop/tejas/unitaryfoundation/pytest-quantum/src/pytest_quantum/assertions/snapshot.py
-# hypothesis_version: 6.151.9
-
-[1e-10, 1e-06, 0.05, 10000, '.lock', '.npy', '/', '1', 'Any', '\\', '_', '_dist.npy']
