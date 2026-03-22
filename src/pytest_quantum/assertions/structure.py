@@ -508,6 +508,114 @@ def assert_circuit_is_clifford(circuit: object) -> None:
     )
 
 
+def assert_no_mid_circuit_measurement(circuit: object) -> None:
+    """Assert a circuit has no mid-circuit measurements (all measurements are terminal).
+
+    Mid-circuit measurements (measurements followed by further gate operations)
+    are not supported on all hardware backends.  This assertion verifies that
+    all measurements occur after all gate operations — i.e., measurements only
+    appear in the final layer.
+
+    Supported frameworks: Qiskit, Cirq.
+
+    Args:
+        circuit: A quantum circuit from a supported framework.
+
+    Raises:
+        AssertionError:      If mid-circuit measurements are detected.
+        NotImplementedError: If framework is not supported.
+
+    Example::
+
+        from qiskit import QuantumCircuit
+        from pytest_quantum import assert_no_mid_circuit_measurement
+
+        qc = QuantumCircuit(2, 2)
+        qc.h(0)
+        qc.cx(0, 1)
+        qc.measure_all()
+        assert_no_mid_circuit_measurement(qc)  # passes — measurements are terminal
+    """
+    module = type(circuit).__module__
+    c: Any = circuit
+
+    if module.startswith("qiskit"):
+        # Build a per-qubit timeline: track the last instruction index for each qubit
+        # If any gate comes after a measurement on the same qubit, it's mid-circuit
+        from qiskit.circuit import Measure
+
+        qubit_measure_idx: dict[int, int] = {}
+        violations: list[str] = []
+
+        for idx, instr in enumerate(c.data):
+            qubits = [c.find_bit(q).index for q in instr.qubits]
+            if isinstance(instr.operation, Measure):
+                for q in qubits:
+                    qubit_measure_idx[q] = idx
+            else:
+                op_name = instr.operation.name
+                if op_name in ("barrier",):
+                    continue
+                for q in qubits:
+                    if q in qubit_measure_idx:
+                        violations.append(
+                            f"qubit {q}: gate '{op_name}' at position {idx} "
+                            f"follows measurement at position {qubit_measure_idx[q]}"
+                        )
+
+        if violations:
+            raise AssertionError(
+                f"Mid-circuit measurements detected ({len(violations)} violation(s)):\n"
+                + "\n".join(f"  - {v}" for v in violations)
+                + "\n  Hint: move all measurements to the end of the circuit."
+            )
+        return
+
+    if module.startswith("cirq"):
+        import cirq
+
+        # In Cirq, measurements in moments before the last non-empty moment are mid-circuit
+        moments = list(c.moments)
+        if not moments:
+            return
+
+        # Find all moments with measurements
+        meas_moment_indices: list[int] = []
+        gate_moment_indices: list[int] = []
+
+        for i, moment in enumerate(moments):
+            has_meas = any(
+                isinstance(op.gate, cirq.MeasurementGate) for op in moment.operations
+            )
+            has_gate = any(
+                not isinstance(op.gate, cirq.MeasurementGate)
+                for op in moment.operations
+            )
+            if has_meas:
+                meas_moment_indices.append(i)
+            if has_gate:
+                gate_moment_indices.append(i)
+
+        if not meas_moment_indices or not gate_moment_indices:
+            return
+
+        last_gate_moment = max(gate_moment_indices)
+        mid_meas = [i for i in meas_moment_indices if i < last_gate_moment]
+
+        if mid_meas:
+            raise AssertionError(
+                f"Mid-circuit measurements detected in Cirq circuit.\n"
+                f"  Measurement moments: {mid_meas}\n"
+                f"  Last gate moment   : {last_gate_moment}\n"
+                f"  Hint: reorder operations so all measurements come last."
+            )
+        return
+
+    raise NotImplementedError(
+        f"assert_no_mid_circuit_measurement supports Qiskit and Cirq; got {module!r}"
+    )
+
+
 def assert_has_diagram(circuit: object, expected: str, *, strict: bool = False) -> None:
     """Assert circuit's text representation contains expected pattern.
 

@@ -3,6 +3,72 @@
 from __future__ import annotations
 
 
+def assert_qasm2_roundtrip(
+    circuit: object,
+    *,
+    atol: float = 1e-6,
+    allow_global_phase: bool = True,
+) -> None:
+    """Assert a Qiskit circuit survives an OpenQASM 2.0 export/import round-trip.
+
+    Exports the circuit via ``qiskit.qasm2.dumps`` and re-imports it via
+    ``qiskit.qasm2.loads``, then compares unitaries.
+
+    Note:
+        QASM 2.0 has limited gate support.  Circuits with custom/parametrised
+        gates that lack QASM 2 definitions may fail — use ``assert_qasm_roundtrip``
+        (QASM 3) for those circuits.
+
+    Args:
+        circuit:            Qiskit QuantumCircuit.
+        atol:               Tolerance for unitary comparison (default 1e-6).
+        allow_global_phase: Ignore global phase in comparison (default True).
+
+    Raises:
+        AssertionError:      If re-imported circuit has a different unitary.
+        NotImplementedError: For non-Qiskit circuits.
+        ImportError:         If qiskit is not installed.
+
+    Example::
+
+        from qiskit import QuantumCircuit
+        from pytest_quantum import assert_qasm2_roundtrip
+
+        qc = QuantumCircuit(2)
+        qc.h(0)
+        qc.cx(0, 1)
+        assert_qasm2_roundtrip(qc)
+    """
+    module = type(circuit).__module__
+
+    if not module.startswith("qiskit"):
+        raise NotImplementedError(
+            f"assert_qasm2_roundtrip only supports Qiskit QuantumCircuit; got {module!r}.\n"
+            "For Cirq, use assert_qasm_roundtrip (QASM 3 / JSON round-trip)."
+        )
+
+    try:
+        from qiskit import qasm2
+
+        from pytest_quantum.assertions.unitary import assert_unitary
+        from pytest_quantum.converters.to_unitary import to_unitary
+
+        original_U = to_unitary(circuit)
+        qasm_str = qasm2.dumps(circuit)  # type: ignore[arg-type]
+        reimported = qasm2.loads(qasm_str)
+    except ImportError as exc:
+        raise ImportError(
+            "qiskit is required for assert_qasm2_roundtrip: pip install qiskit"
+        ) from exc
+
+    assert_unitary(
+        reimported,
+        original_U,
+        atol=atol,
+        allow_global_phase=allow_global_phase,
+    )
+
+
 def assert_qasm_roundtrip(
     circuit: object,
     *,

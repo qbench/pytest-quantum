@@ -2573,7 +2573,6 @@ source = { editable = "." }
 dependencies = [
     { name = "numpy" },
     { name = "pytest" },
-    { name = "qiskit-ibm-runtime" },
     { name = "scipy" },
 ]
 
@@ -2591,6 +2590,7 @@ all = [
     { name = "pytket" },
     { name = "qiskit" },
     { name = "qiskit-aer" },
+    { name = "qiskit-ibm-runtime" },
     { name = "qutip" },
     { name = "stim" },
 ]
@@ -2606,6 +2606,9 @@ cvxpy = [
 ]
 graphix = [
     { name = "graphix" },
+]
+ibm = [
+    { name = "qiskit-ibm-runtime" },
 ]
 mitiq = [
     { name = "mitiq" },
@@ -2680,6 +2683,7 @@ requires-dist = [
     { name = "pytest-quantum", extras = ["cirq"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["cvxpy"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["graphix"], marker = "extra == 'all'" },
+    { name = "pytest-quantum", extras = ["ibm"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["mitiq"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["pennylane"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["pytket"], marker = "extra == 'all'" },
@@ -2690,13 +2694,13 @@ requires-dist = [
     { name = "pytket", marker = "extra == 'pytket'", specifier = ">=1.30" },
     { name = "qiskit", marker = "extra == 'qiskit'", specifier = ">=1.0" },
     { name = "qiskit-aer", marker = "extra == 'qiskit'", specifier = ">=0.15" },
-    { name = "qiskit-ibm-runtime", specifier = ">=0.45.1" },
+    { name = "qiskit-ibm-runtime", marker = "extra == 'ibm'", specifier = ">=0.45.1" },
     { name = "qutip", marker = "extra == 'qutip'", specifier = ">=4.7" },
     { name = "scipy", specifier = ">=1.13" },
     { name = "stim", marker = "extra == 'stim'", specifier = ">=1.13" },
     { name = "tequila-basic", marker = "extra == 'tequila'", specifier = ">=1.9" },
 ]
-provides-extras = ["qiskit", "cirq", "braket", "graphix", "pennylane", "qcec", "pytket", "stim", "qutip", "tequila", "mitiq", "cvxpy", "all"]
+provides-extras = ["qiskit", "ibm", "cirq", "braket", "graphix", "pennylane", "qcec", "pytket", "stim", "qutip", "tequila", "mitiq", "cvxpy", "all"]
 
 [package.metadata.requires-dev]
 dev = [

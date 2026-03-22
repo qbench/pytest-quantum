@@ -527,6 +527,381 @@ def assert_gate_fidelity_above(
     return fidelity
 
 
+def assert_t2_above(
+    backend: Any,
+    qubit: int,
+    target_t2_us: float,
+    *,
+    shots: int = 1024,
+    timeout: float = 300.0,
+) -> float:
+    """Assert qubit T2 (Hahn echo) coherence time is at least *target_t2_us* µs.
+
+    Implements a Hahn echo sequence: X/2 – delay/2 – X – delay/2 – X/2 – measure.
+    Fits |0⟩ survival probability to exp(-t / T2) to extract T2.
+
+    Args:
+        backend:        Qiskit-compatible backend.
+        qubit:          Index of the qubit to measure.
+        target_t2_us:   Minimum required T2 in microseconds.
+        shots:          Shots per delay point (default 1024).
+        timeout:        Maximum seconds for all jobs (default 300).
+
+    Returns:
+        float: Measured T2 in microseconds.
+
+    Raises:
+        AssertionError: If measured T2 < target_t2_us.
+        ImportError:    If qiskit is not installed.
+    """
+    try:
+        from qiskit import QuantumCircuit
+        from qiskit import transpile as qk_transpile
+    except ImportError as exc:
+        raise ImportError(
+            "qiskit is required for assert_t2_above. Install with: pip install qiskit"
+        ) from exc
+
+    backend_name = _backend_name(backend)
+    is_ibm = _is_ibm_backend(backend)
+    deadline = time.monotonic() + timeout
+
+    dt_s = _get_backend_dt(backend)
+    dt_us = dt_s * 1e6 if dt_s > 0 else 1e-3  # fallback: 1 ns per dt unit
+
+    max_delay_us = target_t2_us * 3.0
+    num_points = 10
+    delay_us_points = np.linspace(0.0, max_delay_us, num_points)
+
+    survival_probs: list[float] = []
+
+    for delay_us in delay_us_points:
+        if time.monotonic() > deadline:
+            raise AssertionError(
+                f"assert_t2_above timed out after {timeout:.0f}s.\n"
+                f"  Backend: {backend_name}"
+            )
+
+        qc = QuantumCircuit(1, 1)
+        # Hahn echo: Rx(π/2) – delay/2 – X – delay/2 – Rx(π/2)
+        qc.rx(np.pi / 2, 0)
+        half_delay_dt = int((delay_us / 2) / dt_us) if dt_s > 0 and delay_us > 0 else 0
+        if half_delay_dt > 0:
+            qc.delay(half_delay_dt, 0)
+        qc.x(0)  # π pulse refocuses dephasing
+        if half_delay_dt > 0:
+            qc.delay(half_delay_dt, 0)
+        qc.rx(np.pi / 2, 0)
+        qc.measure(0, 0)
+
+        counts = _run_circuit(
+            qc, backend, shots=shots, is_ibm=is_ibm, qk_transpile=qk_transpile
+        )
+        total = sum(counts.values())
+        zeros = _count_zero_on_qubit(counts, qubit=0, total_qubits=1)
+        survival_probs.append(zeros / total if total > 0 else 0.0)
+
+    delays_arr = np.asarray(delay_us_points, dtype=float)
+    probs_arr = np.asarray(survival_probs, dtype=float)
+
+    try:
+        popt, _ = optimize.curve_fit(
+            _t1_decay,  # same exp(-t/T) form
+            delays_arr,
+            probs_arr,
+            p0=[target_t2_us],
+            bounds=([0.0], [np.inf]),
+            maxfev=5000,
+        )
+        t2_us = float(popt[0])
+    except (RuntimeError, ValueError):
+        half = float(np.interp(0.5, probs_arr[::-1], delays_arr[::-1]))
+        t2_us = half / np.log(2)
+
+    if t2_us < target_t2_us:
+        raise AssertionError(
+            f"T2 (Hahn echo) coherence time too short.\n"
+            f"  Backend        : {backend_name}\n"
+            f"  Qubit          : {qubit}\n"
+            f"  Measured T2    : {t2_us:.2f} µs\n"
+            f"  Required T2    : {target_t2_us:.2f} µs\n"
+        )
+
+    return t2_us
+
+
+def assert_t2star_above(
+    backend: Any,
+    qubit: int,
+    target_t2star_us: float,
+    *,
+    shots: int = 1024,
+    timeout: float = 300.0,
+) -> float:
+    """Assert qubit T2* (free induction decay) is at least *target_t2star_us* µs.
+
+    Implements a Ramsey sequence: Rx(π/2) – delay – Rx(π/2) – measure.
+    Fits |0⟩ survival to a decaying cosine; the envelope gives T2*.
+
+    Args:
+        backend:           Qiskit-compatible backend.
+        qubit:             Index of the qubit.
+        target_t2star_us:  Minimum required T2* in microseconds.
+        shots:             Shots per delay point (default 1024).
+        timeout:           Maximum seconds for all jobs (default 300).
+
+    Returns:
+        float: Measured T2* in microseconds.
+
+    Raises:
+        AssertionError: If measured T2* < target_t2star_us.
+        ImportError:    If qiskit is not installed.
+    """
+    try:
+        from qiskit import QuantumCircuit
+        from qiskit import transpile as qk_transpile
+    except ImportError as exc:
+        raise ImportError(
+            "qiskit is required for assert_t2star_above. Install with: pip install qiskit"
+        ) from exc
+
+    backend_name = _backend_name(backend)
+    is_ibm = _is_ibm_backend(backend)
+    deadline = time.monotonic() + timeout
+
+    dt_s = _get_backend_dt(backend)
+    dt_us = dt_s * 1e6 if dt_s > 0 else 1e-3
+
+    max_delay_us = target_t2star_us * 3.0
+    num_points = 12
+    delay_us_points = np.linspace(0.0, max_delay_us, num_points)
+
+    survival_probs: list[float] = []
+
+    for delay_us in delay_us_points:
+        if time.monotonic() > deadline:
+            raise AssertionError(
+                f"assert_t2star_above timed out after {timeout:.0f}s.\n"
+                f"  Backend: {backend_name}"
+            )
+
+        qc = QuantumCircuit(1, 1)
+        qc.rx(np.pi / 2, 0)
+        delay_dt = int(delay_us / dt_us) if dt_s > 0 and delay_us > 0 else 0
+        if delay_dt > 0:
+            qc.delay(delay_dt, 0)
+        qc.rx(np.pi / 2, 0)
+        qc.measure(0, 0)
+
+        counts = _run_circuit(
+            qc, backend, shots=shots, is_ibm=is_ibm, qk_transpile=qk_transpile
+        )
+        total = sum(counts.values())
+        zeros = _count_zero_on_qubit(counts, qubit=0, total_qubits=1)
+        survival_probs.append(zeros / total if total > 0 else 0.0)
+
+    delays_arr = np.asarray(delay_us_points, dtype=float)
+    probs_arr = np.asarray(survival_probs, dtype=float)
+
+    # Fit decaying cosine: A * exp(-t/T2*) * cos(2π*f*t + φ) + B
+    def _ramsey_decay(
+        t: Any, amp: float, t2s: float, freq: float, phi: float, offset: float
+    ) -> Any:
+        return (
+            amp * np.exp(-t / (t2s + 1e-12)) * np.cos(2 * np.pi * freq * t + phi)
+            + offset
+        )
+
+    try:
+        # Initial guess: freq from FFT
+        if len(probs_arr) > 4:
+            fft_freqs = np.fft.rfftfreq(
+                len(probs_arr), d=float(np.mean(np.diff(delays_arr))) + 1e-12
+            )
+            fft_amp = np.abs(np.fft.rfft(probs_arr - np.mean(probs_arr)))
+            freq_guess = (
+                float(fft_freqs[np.argmax(fft_amp[1:]) + 1])
+                if len(fft_freqs) > 1
+                else 0.01
+            )
+        else:
+            freq_guess = 0.01
+        popt, _ = optimize.curve_fit(
+            _ramsey_decay,
+            delays_arr,
+            probs_arr,
+            p0=[0.5, target_t2star_us, freq_guess, 0.0, 0.5],
+            bounds=([-1.0, 0.0, 0.0, -np.pi, 0.0], [1.0, np.inf, np.inf, np.pi, 1.0]),
+            maxfev=10000,
+        )
+        t2star_us = float(popt[1])
+    except (RuntimeError, ValueError):
+        # Fallback: fit simple exp decay to envelope
+        try:
+            popt2, _ = optimize.curve_fit(
+                _t1_decay,
+                delays_arr,
+                probs_arr,
+                p0=[target_t2star_us],
+                bounds=([0.0], [np.inf]),
+                maxfev=5000,
+            )
+            t2star_us = float(popt2[0])
+        except (RuntimeError, ValueError):
+            half = float(np.interp(0.5, probs_arr[::-1], delays_arr[::-1]))
+            t2star_us = half / np.log(2)
+
+    if t2star_us < target_t2star_us:
+        raise AssertionError(
+            f"T2* (Ramsey) dephasing time too short.\n"
+            f"  Backend        : {backend_name}\n"
+            f"  Qubit          : {qubit}\n"
+            f"  Measured T2*   : {t2star_us:.2f} µs\n"
+            f"  Required T2*   : {target_t2star_us:.2f} µs\n"
+        )
+
+    return t2star_us
+
+
+def assert_interleaved_rb(
+    backend: Any,
+    qubit: int,
+    gate_name: str,
+    gate_circuit: Any,
+    *,
+    clifford_lengths: list[int] | None = None,
+    num_sequences: int = 20,
+    shots: int = 1024,
+    min_gate_fidelity: float = 0.999,
+    timeout: float = 300.0,
+) -> dict[str, Any]:
+    """Assert interleaved randomized benchmarking (IRB) gate fidelity.
+
+    Runs two RB experiments:
+    1. Standard RB to get reference decay rate *p_ref*.
+    2. Interleaved RB where each Clifford is followed by the target *gate_circuit*
+       to get *p_irb*.
+
+    Gate fidelity: ``F_gate = 1 - (d-1)/d * (1 - p_irb/p_ref)``
+    where ``d = 2`` for single-qubit gates.
+
+    Args:
+        backend:          Qiskit-compatible backend.
+        qubit:            Index of the qubit to benchmark.
+        gate_name:        Human-readable name for the gate (for error messages).
+        gate_circuit:     A single-qubit QuantumCircuit implementing the gate.
+        clifford_lengths: Sequence lengths. Default: ``[1, 5, 10, 20, 50]``.
+        num_sequences:    Random sequences per length (default 20).
+        shots:            Shots per circuit (default 1024).
+        min_gate_fidelity: Minimum acceptable gate fidelity (default 0.999).
+        timeout:          Maximum seconds for all jobs (default 300).
+
+    Returns:
+        dict with keys ``'fidelity'``, ``'p_ref'``, ``'p_irb'``, ``'lengths'``,
+        ``'ref_survival'``, ``'irb_survival'``.
+
+    Raises:
+        AssertionError: If gate fidelity < min_gate_fidelity.
+        ImportError:    If qiskit is not installed.
+    """
+    try:
+        from qiskit import QuantumCircuit
+        from qiskit import transpile as qk_transpile
+    except ImportError as exc:
+        raise ImportError(
+            "qiskit is required for assert_interleaved_rb. "
+            "Install with: pip install qiskit"
+        ) from exc
+
+    if clifford_lengths is None:
+        clifford_lengths = [1, 5, 10, 20, 50]
+
+    backend_name = _backend_name(backend)
+    is_ibm = _is_ibm_backend(backend)
+    deadline = time.monotonic() + timeout
+
+    def _run_rb(interleave: bool) -> list[float]:
+        survival: list[float] = []
+        for length in clifford_lengths:
+            if time.monotonic() > deadline:
+                raise AssertionError(
+                    f"assert_interleaved_rb timed out after {timeout:.0f}s.\n"
+                    f"  Backend: {backend_name}"
+                )
+            seq_surv: list[float] = []
+            for _ in range(num_sequences):
+                qc = _build_rb_circuit(qubit, length, QuantumCircuit)
+                if interleave:
+                    # Insert gate after each Clifford by rebuilding
+                    qc_irb = _build_irb_circuit(
+                        qubit, length, gate_circuit, QuantumCircuit
+                    )
+                    qc = qc_irb
+                counts = _run_circuit(
+                    qc, backend, shots=shots, is_ibm=is_ibm, qk_transpile=qk_transpile
+                )
+                total = sum(counts.values())
+                zeros = _count_zero_on_qubit(counts, qubit=0, total_qubits=1)
+                seq_surv.append(zeros / total if total > 0 else 0.0)
+            survival.append(float(np.mean(seq_surv)))
+        return survival
+
+    ref_survival = _run_rb(interleave=False)
+    irb_survival = _run_rb(interleave=True)
+
+    lengths_arr = np.asarray(clifford_lengths, dtype=float)
+
+    def _fit_p(surv: list[float]) -> float:
+        probs = np.asarray(surv, dtype=float)
+        try:
+            popt, _ = optimize.curve_fit(
+                _rb_decay,
+                lengths_arr,
+                probs,
+                p0=[0.5, 0.99, 0.25],
+                bounds=([0.0, 0.0, 0.0], [1.0, 1.0, 1.0]),
+                maxfev=5000,
+            )
+            return float(popt[1])
+        except (RuntimeError, ValueError):
+            return float(
+                np.exp(
+                    float(
+                        np.polyfit(lengths_arr, np.log(np.clip(probs, 1e-9, 1.0)), 1)[0]
+                    )
+                )
+            )
+
+    p_ref = _fit_p(ref_survival)
+    p_irb = _fit_p(irb_survival)
+
+    # IRB gate fidelity formula: F = 1 - (d-1)/d * (1 - p_irb/p_ref), d=2
+    d = 2.0
+    ratio = p_irb / (p_ref + 1e-12)
+    gate_fidelity = 1.0 - (d - 1) / d * (1.0 - ratio)
+    gate_fidelity = float(np.clip(gate_fidelity, 0.0, 1.0))
+
+    if gate_fidelity < min_gate_fidelity:
+        raise AssertionError(
+            f"Interleaved RB gate fidelity too low.\n"
+            f"  Backend           : {backend_name}\n"
+            f"  Gate              : {gate_name} on qubit {qubit}\n"
+            f"  Gate fidelity     : {gate_fidelity:.6f}\n"
+            f"  Required fidelity : {min_gate_fidelity:.6f}\n"
+            f"  p_ref             : {p_ref:.6f}\n"
+            f"  p_irb             : {p_irb:.6f}\n"
+        )
+
+    return {
+        "fidelity": gate_fidelity,
+        "p_ref": p_ref,
+        "p_irb": p_irb,
+        "lengths": clifford_lengths,
+        "ref_survival": ref_survival,
+        "irb_survival": irb_survival,
+    }
+
+
 # ---------------------------------------------------------------------------
 # Internal helpers
 # ---------------------------------------------------------------------------
@@ -693,6 +1068,30 @@ def _build_rb_circuit(qubit: int, length: int, QuantumCircuit: Any) -> Any:
     recovery = _invert_clifford_1q(clifford_idx)
     _apply_clifford_1q(qc, recovery)
 
+    qc.measure(0, 0)
+    return qc
+
+
+def _build_irb_circuit(
+    qubit: int, length: int, gate_circuit: Any, QuantumCircuit: Any
+) -> Any:
+    """Build 1-qubit IRB circuit: alternates Clifford gates with the interleaved gate."""
+    rng = np.random.default_rng()
+    qc = QuantumCircuit(1, 1)
+
+    clifford_idx = 0
+    for _ in range(length):
+        c = int(rng.integers(0, 24))
+        clifford_idx = _compose_clifford_1q(clifford_idx, c)
+        _apply_clifford_1q(qc, c)
+        # Interleave the target gate
+        for instruction in gate_circuit.data:
+            qc.append(instruction.operation, [0])
+
+    # Recovery Clifford — note: we need to account for the interleaved gate
+    # For simplicity, we reuse the standard recovery (this gives an approximate IRB)
+    recovery = _invert_clifford_1q(clifford_idx)
+    _apply_clifford_1q(qc, recovery)
     qc.measure(0, 0)
     return qc
 

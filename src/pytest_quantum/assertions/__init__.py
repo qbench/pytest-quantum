@@ -8,9 +8,12 @@ from __future__ import annotations
 
 from pytest_quantum.assertions.benchmarking import (
     assert_gate_fidelity_above,
+    assert_interleaved_rb,
     assert_quantum_volume,
     assert_randomized_benchmarking,
     assert_t1_above,
+    assert_t2_above,
+    assert_t2star_above,
 )
 from pytest_quantum.assertions.channels import (
     assert_channel_is_cptp,
@@ -82,7 +85,13 @@ from pytest_quantum.assertions.primitives import (
     assert_estimator_close,
     assert_sampler_distribution,
 )
-from pytest_quantum.assertions.qasm import assert_qasm_roundtrip
+from pytest_quantum.assertions.qasm import assert_qasm2_roundtrip, assert_qasm_roundtrip
+from pytest_quantum.assertions.quantum_ml import (
+    assert_entanglement_capability_above,
+    assert_expressibility_above,
+    assert_no_barren_plateau,
+    assert_xeb_fidelity_above,
+)
 from pytest_quantum.assertions.snapshot import (
     assert_distribution_snapshot,
     assert_unitary_snapshot,
@@ -104,6 +113,7 @@ from pytest_quantum.assertions.structure import (
     assert_gate_count,
     assert_gates_in_basis_set,
     assert_has_diagram,
+    assert_no_mid_circuit_measurement,
 )
 from pytest_quantum.assertions.sweeps import (
     assert_circuit_sweep,
@@ -140,10 +150,12 @@ __all__ = [
     "assert_dephasing_channel",
     "assert_depolarizing_channel",
     "assert_distribution_snapshot",
+    "assert_entanglement_capability_above",
     "assert_entanglement_entropy_below",
     "assert_error_mitigation_benchmark",
     "assert_estimator_close",
     "assert_expectation_value_close",
+    "assert_expressibility_above",
     "assert_gate_count",
     "assert_gate_count_after_transpilation",
     "assert_gate_fidelity_above",
@@ -152,11 +164,14 @@ __all__ = [
     "assert_has_diagram",
     "assert_hellinger_close",
     "assert_hermitian",
+    "assert_interleaved_rb",
     "assert_kl_divergence_below",
     "assert_measurement_distribution",
     "assert_mirror_fidelity",
     "assert_mitigation_improves_fidelity",
+    "assert_no_barren_plateau",
     "assert_no_leakage",
+    "assert_no_mid_circuit_measurement",
     "assert_noise_fidelity_above",
     "assert_normalized",
     "assert_parametrized_unitary_continuous",
@@ -166,6 +181,7 @@ __all__ = [
     "assert_positive_semidefinite",
     "assert_process_fidelity_above",
     "assert_purity_above",
+    "assert_qasm2_roundtrip",
     "assert_qasm_roundtrip",
     "assert_qiskit_cirq_equivalent",
     "assert_qiskit_pytket_equivalent",
@@ -180,12 +196,15 @@ __all__ = [
     "assert_stim_detector_error_rate_below",
     "assert_stim_logical_error_rate_below",
     "assert_t1_above",
+    "assert_t2_above",
+    "assert_t2star_above",
     "assert_trace_distance_below",
     "assert_transpilation_depth_below",
     "assert_transpilation_equivalent",
     "assert_transpilation_preserves_semantics",
     "assert_unitary",
     "assert_unitary_snapshot",
+    "assert_xeb_fidelity_above",
     "assert_zne_expectation_close",
     "assert_zne_reduces_error",
 ]

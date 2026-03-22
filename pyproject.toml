@@ -37,11 +37,11 @@ dependencies = [
     "pytest>=8.0",
     "numpy>=2.0",
     "scipy>=1.13",
-    "qiskit-ibm-runtime>=0.45.1",
 ]
 
 [project.optional-dependencies]
 qiskit   = ["qiskit>=1.0", "qiskit-aer>=0.15"]
+ibm      = ["qiskit-ibm-runtime>=0.45.1"]
 cirq     = ["cirq-core>=1.3"]
 braket   = ["amazon-braket-sdk>=1.80", "amazon-braket-default-simulator>=1.23"]
 graphix  = ["graphix>=0.3"]
@@ -55,6 +55,7 @@ mitiq    = ["mitiq>=0.38"]
 cvxpy    = ["cvxpy>=1.4"]
 all = [
     "pytest-quantum[qiskit]",
+    "pytest-quantum[ibm]",
     "pytest-quantum[cirq]",
     "pytest-quantum[braket]",
     "pytest-quantum[graphix]",
