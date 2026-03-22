@@ -742,15 +742,23 @@ def _get_clifford_matrices() -> list[Any]:
     return matrices
 
 
+def _clifford_equal_up_to_phase(a: np.ndarray[Any, Any], b: np.ndarray[Any, Any]) -> bool:
+    """Return True if a == e^{iθ} b for some phase θ."""
+    norm_b = np.linalg.norm(b)
+    if norm_b < 1e-12:
+        return False
+    # If a = phase * b then |<a, b>| / (||a|| ||b||) == 1
+    overlap = abs(np.vdot(a.flatten(), b.flatten()))
+    norm_a = np.linalg.norm(a)
+    return bool(np.isclose(overlap, norm_a * norm_b, rtol=1e-6))
+
+
 def _compose_clifford_1q(a: int, b: int) -> int:
     """Return the index of the Clifford equal to C_b ∘ C_a."""
     mats = _get_clifford_matrices()
     composed = mats[b] @ mats[a]
-    # Find closest Clifford (up to global phase)
     for i, m in enumerate(mats):
-        ratio = composed / m
-        flat = ratio.flatten()
-        if np.allclose(flat, flat[0]) and not np.isclose(flat[0], 0.0):
+        if _clifford_equal_up_to_phase(composed, m):
             return i
     return 0  # fallback
 
@@ -760,9 +768,7 @@ def _invert_clifford_1q(idx: int) -> int:
     mats = _get_clifford_matrices()
     inv = np.linalg.inv(mats[idx])
     for i, m in enumerate(mats):
-        ratio = inv / m
-        flat = ratio.flatten()
-        if np.allclose(flat, flat[0]) and not np.isclose(flat[0], 0.0):
+        if _clifford_equal_up_to_phase(inv, m):
             return i
     return 0  # fallback
 
