@@ -165,7 +165,7 @@ class TestAssertMeasurementDistributionPennyLane:
 
         from pytest_quantum import assert_measurement_distribution
 
-        dev = pennylane_device(wires=2, shots=2000)  # type: ignore[operator]
+        dev = pennylane_device(wires=2, shots=8000)  # type: ignore[operator]
 
         @qml.qnode(dev)
         def bell() -> object:
@@ -180,5 +180,5 @@ class TestAssertMeasurementDistributionPennyLane:
         assert_measurement_distribution(
             counts,
             expected_probs={"00": 0.5, "11": 0.5},
-            significance=0.01,
+            significance=0.001,
         )
