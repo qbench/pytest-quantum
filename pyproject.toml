@@ -4,14 +4,14 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-quantum"
-version = "0.5.0"
+version = "1.0.0"
 description = "A cross-framework pytest plugin for quantum program testing"
 readme = "README.md"
 license = "MIT"
 authors = [{ name = "Tejas", email = "tejasghatule12345@gmail.com" }]
 requires-python = ">=3.11"
 classifiers = [
-    "Development Status :: 3 - Alpha",
+    "Development Status :: 5 - Production/Stable",
     "Framework :: Pytest",
     "Intended Audience :: Developers",
     "Intended Audience :: Science/Research",

@@ -1,4 +1,4 @@
-"""Tests for new v0.5.0 features: T2, T2*, IRB, mid-circuit measurement, QASM2."""
+"""Tests for v1.0.0 features: T2, T2*, IRB, mid-circuit measurement, QASM2."""
 
 from __future__ import annotations
 

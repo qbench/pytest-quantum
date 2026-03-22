@@ -107,7 +107,7 @@ class TestPluginLoading:
         pytester.makepyfile("""
             def test_version():
                 import pytest_quantum
-                assert pytest_quantum.__version__ == "0.5.0"
+                assert pytest_quantum.__version__ == "1.0.0"
         """)
         result = pytester.runpytest()
         result.assert_outcomes(passed=1)

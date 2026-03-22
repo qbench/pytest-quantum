@@ -287,7 +287,7 @@ from pytest_quantum.stats.tests import (
     tvd_from_counts,
 )
 
-__version__ = "0.5.0"
+__version__ = "1.0.0"
 
 __all__ = [
     "assert_amplitude_damping_channel",

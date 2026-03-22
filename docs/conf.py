@@ -4,7 +4,7 @@ from __future__ import annotations
 project = "pytest-quantum"
 copyright = "2026, Tejas"
 author = "Tejas"
-release = "0.3.0"
+release = "1.0.0"
 
 extensions = [
     "sphinx.ext.autodoc",

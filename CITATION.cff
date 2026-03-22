@@ -1,7 +1,7 @@
 cff-version: 1.2.0
 message: "If you use pytest-quantum in your research, please cite it using this metadata."
 title: "pytest-quantum: A cross-framework pytest plugin for quantum program testing"
-version: "0.5.0"
+version: "1.0.0"
 date-released: "2026-03-22"
 license: MIT
 url: "https://github.com/qbench/pytest-quantum"
@@ -20,9 +20,10 @@ authors:
     given-names: "Tejas"
     email: "tejasghatule12345@gmail.com"
 abstract: >
-  pytest-quantum is a cross-framework pytest plugin that provides 65+ assertion
+  pytest-quantum is a cross-framework pytest plugin that provides 80+ assertion
   helpers, fixtures, and statistical tools for testing quantum programs. It supports
-  Qiskit, Cirq, PennyLane, Amazon Braket, Pytket, Stim, QuTiP, Tequila, and Mitiq,
+  Qiskit, Cirq, PennyLane, Amazon Braket, Pytket, Stim, QuTiP, Tequila, Mitiq, and more,
   covering unitary equivalence, state fidelity, density matrices, measurement
   distributions, entanglement entropy, error mitigation, quantum volume,
-  randomized benchmarking, cross-entropy benchmarking, and more.
+  randomized benchmarking, cross-entropy benchmarking, expressibility, barren plateaus,
+  T2/T2* coherence times, mid-circuit measurement detection, and more.

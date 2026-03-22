@@ -8,7 +8,7 @@ A cross-framework pytest plugin for quantum program testing.
 [![CI](https://github.com/qbench/pytest-quantum/actions/workflows/ci.yml/badge.svg)](https://github.com/qbench/pytest-quantum/actions)
 [![Docs](https://readthedocs.org/projects/pytest-quantum/badge/?version=latest)](https://pytest-quantum.readthedocs.io)
 
-Test quantum programs the same way you test classical code — with `pytest`.
+Test quantum programs the same way you test classical code, using `pytest`.
 Works with **Qiskit**, **Cirq**, **Amazon Braket**, **PennyLane**, **Graphix**,
 **Pytket**, **Stim**, **QuTiP**, **Tequila**, and **Mitiq**.
 
@@ -16,7 +16,16 @@ Works with **Qiskit**, **Cirq**, **Amazon Braket**, **PennyLane**, **Graphix**,
 
 ---
 
-## What's new in v0.5.0
+## Who should use pytest-quantum?
+
+- **Quantum software engineers** writing gate-model circuits in Qiskit, Cirq, PennyLane, or Pytket who need robust, reproducible unit tests.
+- **Researchers running VQE or QAOA** who need statistically sound assertions on variational algorithm convergence and expressibility.
+- **Teams CI-testing quantum algorithms** across multiple frameworks and backends, including noisy simulation and hardware targets.
+- **Hardware validation engineers** characterising real devices with quantum volume, randomised benchmarking, T1/T2/T2* coherence, and XEB fidelity.
+
+---
+
+## What's new in v1.0.0
 
 - **Benchmarking assertions**: `assert_quantum_volume`, `assert_randomized_benchmarking`, `assert_t1_above`, `assert_t2_above`, `assert_t2star_above`, `assert_interleaved_rb`, `assert_gate_fidelity_above`
 - **Quantum ML assertions**: `assert_xeb_fidelity_above`, `assert_expressibility_above`, `assert_entanglement_capability_above`, `assert_no_barren_plateau`
@@ -39,7 +48,7 @@ Quantum programs fail in ways classical tests don't handle:
 
 | Problem | Without pytest-quantum | With pytest-quantum |
 |---|---|---|
-| Shot noise flakiness | `assert counts["00"] == 512` fails ~5% of runs | `assert_measurement_distribution` uses chi-square — only fails when distribution is genuinely wrong |
+| Shot noise flakiness | `assert counts["00"] == 512` fails ~5% of runs | `assert_measurement_distribution` uses chi-square; fails only when distribution is genuinely wrong |
 | Global phase | `np.allclose(U1, U2)` fails for physically identical states | `assert_unitary` handles global phase automatically |
 | Framework boilerplate | Copy-paste `AerSimulator()` setup in every project | `aer_simulator` fixture injected automatically |
 | Shot count guessing | Pick 1024 shots and hope | `min_shots(epsilon=0.02)` gives the statistically correct answer |
@@ -148,7 +157,7 @@ pytest --quantum-real         # enable real hardware tests (requires credentials
 
 ---
 
-## Decision guide — which assertion to use?
+## Decision guide: which assertion to use?
 
 | I want to test... | Best assertion | Alternative |
 |---|---|---|
@@ -164,15 +173,15 @@ pytest --quantum-real         # enable real hardware tests (requires credentials
 | Quantum channel is valid | `assert_channel_is_cptp` | `assert_process_fidelity_above` |
 | VQE / QAOA energy result | `assert_ground_state_energy_close` | `assert_expectation_value_close` |
 | Circuit doesn't change after refactor | `assert_unitary_snapshot` | `assert_distribution_snapshot` |
-| Circuit uses only Clifford gates | `assert_circuit_is_clifford` | — |
-| QASM export/import preserves semantics | `assert_qasm_roundtrip` (v3) or `assert_qasm2_roundtrip` (v2) | — |
-| Logical error rate of QEC code | `assert_stim_logical_error_rate_below` | — |
-| Backend meets quantum volume spec | `assert_quantum_volume` | — |
+| Circuit uses only Clifford gates | `assert_circuit_is_clifford` |  |
+| QASM export/import preserves semantics | `assert_qasm_roundtrip` (v3) or `assert_qasm2_roundtrip` (v2) |  |
+| Logical error rate of QEC code | `assert_stim_logical_error_rate_below` |  |
+| Backend meets quantum volume spec | `assert_quantum_volume` |  |
 | Gate fidelity from RB experiment | `assert_randomized_benchmarking` | `assert_interleaved_rb` |
-| T1 / T2 / T2* coherence times | `assert_t1_above` / `assert_t2_above` / `assert_t2star_above` | — |
-| Cross-entropy benchmarking (XEB) | `assert_xeb_fidelity_above` | — |
+| T1 / T2 / T2* coherence times | `assert_t1_above` / `assert_t2_above` / `assert_t2star_above` |  |
+| Cross-entropy benchmarking (XEB) | `assert_xeb_fidelity_above` |  |
 | VQA circuit is expressive | `assert_expressibility_above` | `assert_entanglement_capability_above` |
-| No barren plateau in VQA training | `assert_no_barren_plateau` | — |
+| No barren plateau in VQA training | `assert_no_barren_plateau` |  |
 | Circuit compatible with hardware | `assert_circuit_fits_backend` | `assert_no_mid_circuit_measurement` |
 | Error mitigation improves results | `assert_zne_reduces_error` | `assert_pec_reduces_error` |
 
@@ -185,9 +194,9 @@ pytest --quantum-real         # enable real hardware tests (requires credentials
 assert_unitary(circuit, expected_matrix)
 assert_circuits_equivalent(circuit_a, circuit_b)
 assert_transpilation_preserves_semantics(orig, compiled)
-assert_cross_platform_equivalent(circuit_a, circuit_b)  # v0.5.0
-assert_qiskit_cirq_equivalent(qiskit_qc, cirq_circuit)  # v0.5.0
-assert_qiskit_pytket_equivalent(qiskit_qc, pytket_circ)  # v0.5.0
+assert_cross_platform_equivalent(circuit_a, circuit_b)  # v1.0.0
+assert_qiskit_cirq_equivalent(qiskit_qc, cirq_circuit)  # v1.0.0
+assert_qiskit_pytket_equivalent(qiskit_qc, pytket_circ)  # v1.0.0
 ```
 
 ### State assertions
@@ -221,7 +230,7 @@ assert_process_fidelity_above(channel_a, channel_b, threshold=0.99)
 assert_noise_fidelity_above(noisy_dm, ideal_state, threshold=0.99)
 ```
 
-### Noise channel assertions *(v0.5.0)*
+### Noise channel assertions *(v1.0.0)*
 ```python
 assert_depolarizing_channel(kraus_ops, error_rate, atol=1e-6)
 assert_amplitude_damping_channel(kraus_ops, gamma, atol=1e-6)
@@ -267,7 +276,7 @@ assert_gate_count(circuit, "cx", expected=2)
 assert_gates_in_basis_set(circuit, basis_gates={"cx", "u3"})
 assert_circuit_is_clifford(circuit)
 assert_has_diagram(circuit, expected_diagram)
-assert_no_mid_circuit_measurement(circuit)  # v0.5.0
+assert_no_mid_circuit_measurement(circuit)  # v1.0.0
 ```
 
 ### Transpilation / compilation
@@ -293,7 +302,7 @@ assert_distribution_snapshot(counts, name, max_tvd=0.05)
 ### QASM round-trips
 ```python
 assert_qasm_roundtrip(circuit)    # OpenQASM 3 (Qiskit) or Cirq JSON
-assert_qasm2_roundtrip(circuit)   # OpenQASM 2.0 (Qiskit only) — v0.5.0
+assert_qasm2_roundtrip(circuit)   # OpenQASM 2.0 (Qiskit only) — v1.0.0
 ```
 
 ### QEC / Stim
@@ -303,7 +312,7 @@ assert_stim_detector_error_rate_below(circuit, max_error_rate, shots=10000)
 assert_stabilizer_state(statevector, stabilizers)
 ```
 
-### Benchmarking *(v0.5.0)*
+### Benchmarking *(v1.0.0)*
 ```python
 assert_quantum_volume(backend, target_qv=16, num_trials=100)
 assert_randomized_benchmarking(backend, qubit=0, min_fidelity_per_clifford=0.999)
@@ -314,7 +323,7 @@ assert_interleaved_rb(backend, qubit=0, gate_name="X", gate_circuit=x_circ)
 assert_gate_fidelity_above(backend, "cx", [0, 1], target_fidelity=0.99)
 ```
 
-### Quantum ML *(v0.5.0)*
+### Quantum ML *(v1.0.0)*
 ```python
 assert_xeb_fidelity_above(backend, num_qubits=2, target_fidelity=0.9)
 assert_expressibility_above(ansatz_fn, num_qubits=2, num_params=4, target=0.5)
@@ -322,7 +331,7 @@ assert_entanglement_capability_above(ansatz_fn, num_qubits=2, num_params=4, targ
 assert_no_barren_plateau(ansatz_fn, num_qubits=4, num_params=16)
 ```
 
-### Hardware assertions *(v0.5.0)*
+### Hardware assertions *(v1.0.0)*
 ```python
 assert_backend_calibration(backend, min_t1_us=30.0, min_cx_fidelity=0.99)
 assert_backend_executes(circuit, backend, shots=1024)
@@ -352,14 +361,14 @@ assert_error_mitigation_benchmark(circuit, observable, methods=["zne", "cdr"])
 | Cirq | ≥ 1.0 | `cirq_simulator`, `cirq_sampler` | ✓ | ✓ | ✓ |
 | Amazon Braket | ≥ 1.0 | `braket_simulator`, `braket_cloud_device` | ✓ | ✓ | ✓ |
 | PennyLane | ≥ 0.36 | `pennylane_device` | ✓ | ✓ | ✓ |
-| Graphix | ≥ 0.3 | `graphix_backend` | — | — | — |
+| Graphix | ≥ 0.3 | `graphix_backend` | ✗ | ✗ | ✗ |
 | Pytket | ≥ 1.0 | `pytket_circuit_factory` | ✓ | ✓ | ✓ |
-| Stim | ≥ 1.13 | `stim_sampler` | — | — | — |
-| QuTiP | ≥ 4.7 | `qutip_solver` | — | — | — |
-| Tequila | ≥ 1.9 | `tequila_backend` | — | — | — |
-| IBM Quantum | runtime ≥ 0.45 | `ibm_backend` | ✓ | — | — |
-| IonQ | via qiskit-ionq | `ionq_backend` | — | — | — |
-| Quantinuum | via pytket-quantinuum | `quantinuum_backend` | — | — | — |
+| Stim | ≥ 1.13 | `stim_sampler` | ✗ | ✗ | ✗ |
+| QuTiP | ≥ 4.7 | `qutip_solver` | ✗ | ✗ | ✗ |
+| Tequila | ≥ 1.9 | `tequila_backend` | ✗ | ✗ | ✗ |
+| IBM Quantum | runtime ≥ 0.45 | `ibm_backend` | ✓ | ✗ | ✗ |
+| IonQ | via qiskit-ionq | `ionq_backend` | ✗ | ✗ | ✗ |
+| Quantinuum | via pytket-quantinuum | `quantinuum_backend` | ✗ | ✗ | ✗ |
 
 ---
 
@@ -390,9 +399,9 @@ if the required SDK is not installed.
 | `quantinuum_backend` | Quantinuum | Quantinuum backend (requires `--quantum-real`) |
 | `quantum_hardware_info` | All | Dict of credential availability |
 | `quantum_benchmark` | All | benchmark timing wrapper |
-| `benchmark_suite` | All | assertion timing suite (v0.5.0) |
+| `benchmark_suite` | All | assertion timing suite (v1.0.0) |
 | `shot_budget` | All | shot counter |
-| `multi_backend_runner` | All | parallel multi-backend runner (v0.5.0) |
+| `multi_backend_runner` | All | parallel multi-backend runner (v1.0.0) |
 | `quantum_shots` | All | `int \| None` from `--quantum-shots` |
 | `quantum_significance` | All | `float \| None` from `--quantum-significance` |
 
@@ -471,7 +480,7 @@ If you use pytest-quantum in research, please cite it:
   author = {Ghatule, Tejas},
   year   = {2026},
   url    = {https://github.com/qbench/pytest-quantum},
-  version = {0.5.0}
+  version = {1.0.0}
 }
 ```
 
@@ -496,4 +505,4 @@ uv run mypy src/
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT. See [LICENSE](LICENSE).
