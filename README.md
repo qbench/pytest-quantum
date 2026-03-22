@@ -243,7 +243,7 @@ assert_channel_diamond_norm_below(kraus_ops_a, kraus_ops_b, max_norm=0.01)
 ### Entanglement assertions
 ```python
 assert_entanglement_entropy_below(sv, partition, max_entropy)
-assert_bloch_sphere_close(sv, theta, phi, atol=0.1)
+assert_bloch_sphere_close(sv, expected_theta, expected_phi, atol=0.1)
 assert_schmidt_rank_at_most(sv, partition, max_rank)
 ```
 
