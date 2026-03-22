@@ -1180,9 +1180,7 @@ def multi_backend_runner() -> Any:
                 qc = circuit_fn()
                 # Use cirq.Circuit from the Qiskit circuit via qasm2
                 try:
-                    from cirq.contrib.qasm_import import (
-                        circuit_from_qasm,  # type: ignore[import-not-found]
-                    )
+                    from cirq.contrib.qasm_import import circuit_from_qasm
                     from qiskit import qasm2
 
                     qasm_str = qasm2.dumps(qc)
@@ -1208,9 +1206,7 @@ def multi_backend_runner() -> Any:
                 n = qc.num_qubits
 
                 try:
-                    from pennylane.io.qasm import (
-                        from_qasm,  # type: ignore[import-not-found]
-                    )
+                    from pennylane.io.qasm import from_qasm
 
                     qasm_str = qasm2.dumps(qc)
                     pl_circuit = from_qasm(qasm_str)

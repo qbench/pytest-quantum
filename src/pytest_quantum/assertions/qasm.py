@@ -54,7 +54,7 @@ def assert_qasm2_roundtrip(
         from pytest_quantum.converters.to_unitary import to_unitary
 
         original_U = to_unitary(circuit)
-        qasm_str = qasm2.dumps(circuit)  # type: ignore[arg-type]
+        qasm_str = qasm2.dumps(circuit)
         reimported = qasm2.loads(qasm_str)
     except ImportError as exc:
         raise ImportError(
