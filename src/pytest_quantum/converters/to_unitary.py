@@ -3,6 +3,9 @@
 This is the core of cross-framework support.  Every assertion that needs to
 compare circuits ultimately calls :func:`to_unitary`.
 
+Internally delegates to the adapter registry
+(:mod:`pytest_quantum.adapters`) for framework detection and conversion.
+
 Supported circuit types
 -----------------------
 * ``qiskit.QuantumCircuit`` — via ``qiskit.quantum_info.Operator``
@@ -18,7 +21,7 @@ with the ``graphix_backend`` fixture instead.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -37,34 +40,38 @@ def _reverse_qubit_order(U: NDArray[np.complex128]) -> NDArray[np.complex128]:
 
 
 def _is_qiskit(circuit: object) -> bool:
-    return type(circuit).__module__.startswith("qiskit")
+    from pytest_quantum.adapters.qiskit import QiskitAdapter
+    return QiskitAdapter.detect(circuit)
 
 
 def _is_cirq(circuit: object) -> bool:
-    return type(circuit).__module__.startswith("cirq")
+    from pytest_quantum.adapters.cirq import CirqAdapter
+    return CirqAdapter.detect(circuit)
 
 
 def _is_braket(circuit: object) -> bool:
-    return type(circuit).__module__.startswith("braket")
+    from pytest_quantum.adapters.braket import BraketAdapter
+    return BraketAdapter.detect(circuit)
 
 
 def _is_pennylane(circuit: object) -> bool:
-    mod = type(circuit).__module__
-    return mod.startswith("pennylane") or hasattr(circuit, "device")
+    from pytest_quantum.adapters.pennylane import PennyLaneAdapter
+    return PennyLaneAdapter.detect(circuit)
 
 
 def _is_pytket(circuit: object) -> bool:
-    return type(circuit).__module__.startswith("pytket")
+    from pytest_quantum.adapters.pytket import PytketAdapter
+    return PytketAdapter.detect(circuit)
 
 
 def _is_qutip(circuit: object) -> bool:
-    mod = type(circuit).__module__
-    return mod.startswith("qutip")
+    from pytest_quantum.adapters.qutip import QutipAdapter
+    return QutipAdapter.detect(circuit)
 
 
 def _is_tequila(circuit: object) -> bool:
-    mod = type(circuit).__module__
-    return mod.startswith("tequila")
+    from pytest_quantum.adapters.tequila import TequilaAdapter
+    return TequilaAdapter.detect(circuit)
 
 
 # ---------------------------------------------------------------------------
@@ -102,152 +109,15 @@ def to_unitary(circuit: object) -> NDArray[np.complex128]:
         U = to_unitary(qc)
         assert U.shape == (2, 2)
     """
-    if _is_qiskit(circuit):
-        return _from_qiskit(circuit)
-    if _is_cirq(circuit):
-        return _from_cirq(circuit)
-    if _is_braket(circuit):
-        return _from_braket(circuit)
-    if _is_pennylane(circuit):
-        return _from_pennylane(circuit)
-    if _is_pytket(circuit):
-        return _from_pytket(circuit)
-    if _is_qutip(circuit):
-        return _from_qutip(circuit)
-    if _is_tequila(circuit):
-        return _from_tequila(circuit)
+    from pytest_quantum.adapters import get_adapter
 
-    raise TypeError(
-        f"Unrecognised circuit type: {type(circuit).__qualname__!r}.\n"
-        "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
-        "braket.circuits.Circuit, pennylane QNode, pytket Circuit, "
-        "qutip.Qobj, tequila QCircuit.\n"
-        "For graphix patterns use assert_state_fidelity_above() instead."
-    )
-
-
-# ---------------------------------------------------------------------------
-# Per-framework helpers (private)
-# ---------------------------------------------------------------------------
-
-
-def _from_qiskit(circuit: object) -> NDArray[np.complex128]:
     try:
-        from qiskit.quantum_info import Operator
-    except ImportError as exc:
-        raise ImportError(
-            "qiskit is required for Qiskit circuit support. "
-            "Install it with: pip install pytest-quantum[qiskit]"
-        ) from exc
-
-    return np.asarray(Operator(circuit).data, dtype=np.complex128)
-
-
-def _from_cirq(circuit: object) -> NDArray[np.complex128]:
-    try:
-        import cirq
-    except ImportError as exc:
-        raise ImportError(
-            "cirq is required for Cirq circuit support. "
-            "Install it with: pip install pytest-quantum[cirq]"
-        ) from exc
-
-    return np.asarray(cirq.unitary(circuit), dtype=np.complex128)
-
-
-def _from_braket(circuit: object) -> NDArray[np.complex128]:
-    try:
-        result = cast("Any", circuit).to_unitary()
-    except AttributeError as exc:
+        return get_adapter(circuit).to_unitary(circuit)
+    except TypeError:
         raise TypeError(
-            "The Braket circuit does not expose a to_unitary() method. "
-            "Ensure amazon-braket-sdk is installed: "
-            "pip install pytest-quantum[braket]"
-        ) from exc
-    except ImportError as exc:
-        raise ImportError(
-            "amazon-braket-sdk is required for Braket circuit support. "
-            "Install it with: pip install pytest-quantum[braket]"
-        ) from exc
-
-    return np.asarray(result, dtype=np.complex128)
-
-
-def _from_pytket(circuit: object) -> NDArray[np.complex128]:
-    try:
-        import numpy as np  # already imported at top level, but keep for clarity
-
-        U = np.asarray(cast("Any", circuit).get_unitary())
-        # pytket uses ILO-BE (big-endian) like Cirq — no reversal needed vs Cirq,
-        # but qubit order reversal is handled in assert_circuits_equivalent when
-        # comparing against Qiskit (little-endian).
-        return U.astype(np.complex128)
-    except AttributeError as exc:
-        raise ImportError(
-            "pytket is required for Pytket circuit support. "
-            "Install it with: pip install pytket"
-        ) from exc
-    except ImportError as exc:
-        raise ImportError("pytket is required: pip install pytket") from exc
-
-
-def _from_qutip(circuit: object) -> NDArray[np.complex128]:
-    """Extract unitary from a QuTiP Qobj (must be unitary type)."""
-    try:
-        import qutip  # noqa: F401
-    except ImportError as exc:
-        raise ImportError(
-            "qutip is required for QuTiP support. Install it with: pip install qutip"
-        ) from exc
-    obj = cast("Any", circuit)
-    # Qobj.full() returns numpy matrix; handle both operator and superoperator
-    if hasattr(obj, "full"):
-        U = np.asarray(obj.full(), dtype=np.complex128)
-        if U.ndim == 2 and U.shape[0] == U.shape[1]:
-            return U
-    raise TypeError(
-        f"QuTiP Qobj of type {obj.type!r} cannot be converted to a unitary matrix. "
-        "Pass a unitary operator Qobj (obj.type == 'oper')."
-    )
-
-
-def _from_tequila(circuit: object) -> NDArray[np.complex128]:
-    """Extract unitary from a Tequila QCircuit via column-by-column simulation."""
-    try:
-        import tequila as tq
-    except ImportError as exc:
-        raise ImportError(
-            "tequila is required for Tequila support. "
-            "Install it with: pip install tequila-basic"
-        ) from exc
-    c = cast("Any", circuit)
-    n_qubits = len(c.qubits)
-    dim = 2**n_qubits
-    U = np.zeros((dim, dim), dtype=np.complex128)
-    for i in range(dim):
-        basis_state = tq.QubitWaveFunction.from_int(i, n_qubits=n_qubits)
-        result = tq.simulate(c, initial_state=basis_state)
-        for key, val in result.items():
-            U[key.integer, i] = val
-    return U
-
-
-def _from_pennylane(circuit: object) -> NDArray[np.complex128]:
-    try:
-        import pennylane as qml
-    except ImportError as exc:
-        raise ImportError(
-            "pennylane is required for PennyLane circuit support. "
-            "Install it with: pip install pytest-quantum[pennylane]"
-        ) from exc
-
-    # Determine wire order from the QNode's device
-    if not hasattr(circuit, "device"):
-        raise TypeError(
-            "Cannot auto-detect wire_order for this PennyLane object. "
-            "Pass a QNode (decorated with @qml.qnode) or use "
-            "qml.matrix(your_fn, wire_order=[0, 1, ...])(params) directly."
+            f"Unrecognised circuit type: {type(circuit).__qualname__!r}.\n"
+            "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
+            "braket.circuits.Circuit, pennylane QNode, pytket Circuit, "
+            "qutip.Qobj, tequila QCircuit.\n"
+            "For graphix patterns use assert_state_fidelity_above() instead."
         )
-    wire_order = list(cast("Any", circuit).device.wires)
-    matrix_fn = qml.matrix(circuit, wire_order=wire_order)
-    return np.asarray(matrix_fn(), dtype=np.complex128)

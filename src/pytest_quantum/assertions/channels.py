@@ -218,8 +218,8 @@ def assert_process_fidelity_above(
         d = U.shape[0]
         fidelity = float(abs(np.trace(U.conj().T @ V)) ** 2) / (d * d)
     else:
-        choi_a = _to_choi(kraus_a)
-        choi_b = _to_choi(kraus_b)
+        choi_a = _kraus_to_choi(kraus_a)
+        choi_b = _kraus_to_choi(kraus_b)
         d = kraus_a[0].shape[0]
         fidelity = float(np.real(np.trace(choi_a.conj().T @ choi_b))) / (d * d)
 
@@ -284,17 +284,4 @@ def assert_noise_fidelity_above(
 # ---------------------------------------------------------------------------
 
 
-def _to_choi(kraus_ops: list[NDArray[np.complex128]]) -> NDArray[np.complex128]:
-    """Convert Kraus operators to the Choi matrix via column vectorisation.
-
-    Choi(E) = sum_i |K_i><K_i| in the column-vectorised form,
-    which for a d×d operator gives a d²×d² matrix.
-    """
-    K0 = kraus_ops[0]
-    d = K0.shape[0]
-    choi = np.zeros((d * d, d * d), dtype=np.complex128)
-    for K in kraus_ops:
-        # Column-vectorise K
-        k_vec = K.flatten(order="F").reshape(-1, 1)
-        choi += k_vec @ k_vec.conj().T
-    return choi
+from pytest_quantum._internal import _kraus_to_choi

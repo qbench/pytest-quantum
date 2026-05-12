@@ -536,24 +536,10 @@ def _wait_for_sampler_job(
     return _extract_counts(result[0])
 
 
-def _extract_counts(pub_result: Any) -> dict[str, int]:
-    """Extract counts from a SamplerV2 PubResult regardless of register name."""
-    data = pub_result.data
-    # DataBin fields vary by circuit — try common names first, then scan all
-    for name in ("meas", "c", "c0", "cr", "measure"):
-        bit_array = getattr(data, name, None)
-        if bit_array is not None and hasattr(bit_array, "get_counts"):
-            counts: dict[str, int] = bit_array.get_counts()
-            return counts
-    # Scan all fields dynamically
-    for name in getattr(data, "__dataclass_fields__", {}):
-        bit_array = getattr(data, name, None)
-        if bit_array is not None and hasattr(bit_array, "get_counts"):
-            counts = bit_array.get_counts()
-            return counts
-    raise AssertionError(
-        "Could not extract counts from job result. Ensure the circuit has measurements."
-    )
+from pytest_quantum._internal import (
+    _extract_sampler_counts as _extract_counts,
+    _backend_name,
+)
 
 
 def _job_id(job: object) -> str:
@@ -561,13 +547,3 @@ def _job_id(job: object) -> str:
     if hasattr(job, "job_id") and callable(job.job_id):
         return str(job.job_id())
     return "<unknown>"
-
-
-def _backend_name(backend: object) -> str:
-    """Return human-readable backend name."""
-    name = getattr(backend, "name", None)
-    if callable(name):
-        return str(name())
-    if isinstance(name, str):
-        return name
-    return repr(backend)

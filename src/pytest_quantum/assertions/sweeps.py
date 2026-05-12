@@ -81,17 +81,10 @@ def assert_circuit_sweep(
             )
             continue
 
-        if np.allclose(actual, expected, atol=atol):
-            continue
+        from pytest_quantum._internal import _unitaries_equivalent
 
-        if allow_global_phase:
-            flat_idx = int(np.argmax(np.abs(expected)))
-            e_val = expected.flat[flat_idx]
-            a_val = actual.flat[flat_idx]
-            if abs(e_val) > 1e-10 and abs(a_val) > 1e-10:
-                phase = a_val / e_val
-                if np.allclose(actual, phase * expected, atol=atol):
-                    continue
+        if _unitaries_equivalent(actual, expected, atol=atol, allow_global_phase=allow_global_phase):
+            continue
 
         max_diff = float(np.max(np.abs(actual - expected)))
         failures.append(

@@ -9,61 +9,6 @@ from __future__ import annotations
 
 from typing import Any, cast
 
-# ---------------------------------------------------------------------------
-# Clifford gate sets per framework
-# ---------------------------------------------------------------------------
-_CLIFFORD_BRAKET = frozenset(
-    {"H", "X", "Y", "Z", "S", "Si", "CNot", "CZ", "Swap", "CY", "I", "V", "Vi"}
-)
-_CLIFFORD_PENNYLANE = frozenset(
-    {
-        "PauliX",
-        "PauliY",
-        "PauliZ",
-        "Hadamard",
-        "S",
-        "SX",
-        "CNOT",
-        "CY",
-        "CZ",
-        "SWAP",
-        "ISWAP",
-        "Identity",
-        "Adjoint(S)",
-        "Adjoint(SX)",
-        # Aliases
-        "X",
-        "Y",
-        "Z",
-        "H",
-    }
-)
-
-# Clifford gate sets (case-normalised)
-_CLIFFORD_QISKIT = frozenset(
-    {
-        "h",
-        "s",
-        "sdg",
-        "x",
-        "y",
-        "z",
-        "cx",
-        "cy",
-        "cz",
-        "swap",
-        "id",
-        "sx",
-        "sxdg",
-        "measure",
-        "barrier",
-        "reset",
-    }
-)
-_CLIFFORD_CIRQ = frozenset(
-    {"h", "x", "y", "z", "s", "cnot", "cz", "swap", "i", "measure"}
-)
-
 
 def assert_circuit_depth(
     circuit: object,
@@ -176,67 +121,23 @@ def assert_gate_count(
             assert_gate_count(qc, "t", 2)
             assert_gate_count(qc, "cx", 1)
     """
-    module = type(circuit).__module__
-    c: Any = circuit
+    from pytest_quantum.adapters import get_adapter
 
-    if module.startswith("qiskit"):
-        ops = c.count_ops()
-        actual = ops.get(gate_name.lower(), 0)
-
-    elif module.startswith("cirq"):
-        # Count operations by matching str(op.gate) which gives human-readable names
-        # e.g. cirq.H -> "H", cirq.CNOT -> "CNOT", cirq.CZ -> "CZ"
-        name_lower = gate_name.lower()
-        actual = sum(
-            1
-            for moment in c
-            for op in moment.operations
-            if str(op.gate).lower() == name_lower
-        )
-
-    elif module.startswith("braket"):
-        # Braket: iterate circuit.instructions, match operator.name case-insensitively
-        name_lower = gate_name.lower()
-        actual = sum(
-            1 for instr in c.instructions if instr.operator.name.lower() == name_lower
-        )
-
-    elif module.startswith("pennylane") or hasattr(circuit, "device"):
-        # QNode: try to get the tape; if not available, do a dry run first
-        name_lower = gate_name.lower()
-        tape = None
-        try:
-            tape = c.tape
-        except AttributeError:
-            pass
-        if tape is None:
-            # Execute the circuit with a dry run to populate the tape
-            try:
-                c()
-                tape = c.tape
-            except Exception:
-                tape = None
-        if tape is None:
-            raise TypeError(
-                "PennyLane QNode tape could not be obtained. "
-                "Ensure the QNode is properly constructed."
-            )
-        actual = sum(
-            1 for op in tape.operations if type(op).__name__.lower() == name_lower
-        )
-
-    elif module.startswith("pytket"):
-        name_lower = gate_name.lower()
-        # Try to match by OpType name (case-insensitive)
-        actual = sum(
-            1 for cmd in c.get_commands() if cmd.op.type.name.lower() == name_lower
-        )
-
-    else:
+    try:
+        adapter = get_adapter(circuit)
+        gates = adapter.count_gates(circuit)
+    except (TypeError, NotImplementedError):
         raise NotImplementedError(
             f"assert_gate_count supports Qiskit, Cirq, Braket, PennyLane, "
             f"and Pytket. Got circuit type: {type(circuit).__qualname__!r}."
         )
+
+    # For case-insensitive matching (Qiskit uses lowercase, others may not):
+    name_lower = gate_name.lower()
+    actual = 0
+    for g, count in gates.items():
+        if g.lower() == name_lower:
+            actual += count
 
     if actual != expected:
         raise AssertionError(
@@ -253,77 +154,42 @@ def assert_gate_count(
 
 def _get_depth(circuit: object) -> int:
     """Extract depth from any supported circuit type."""
-    module = type(circuit).__module__
-    c: Any = circuit
+    from pytest_quantum.adapters import get_adapter
 
-    if module.startswith("qiskit"):
-        return int(c.depth())
-
-    if module.startswith("cirq"):
-        # cirq.Circuit depth = number of non-empty moments
-        return len(c)
-
-    if module.startswith("braket"):
-        return int(c.depth)
-
-    if module.startswith("pennylane") or hasattr(circuit, "device"):
-        try:
-            import pennylane as qml
-
-            specs = qml.specs(c)()
-            # Try resources.depth first (newer PennyLane), then fall back to "depth"
-            if hasattr(specs, "get"):
-                resources = specs.get("resources", None)
-                if resources is not None and hasattr(resources, "depth"):
-                    return int(resources.depth)
-                depth_val = specs.get("depth", None)
-                if depth_val is not None:
-                    return int(depth_val)
-            raise TypeError(
-                "Could not extract depth from qml.specs() output. "
-                "Upgrade PennyLane to a version that exposes 'resources' or 'depth'."
-            )
-        except ImportError as exc:
-            raise TypeError(
-                "pennylane is required for PennyLane circuit depth. "
-                "Install it with: pip install pytest-quantum[pennylane]"
-            ) from exc
-
-    if module.startswith("pytket"):
-        return int(c.depth())
-
-    raise TypeError(
-        f"assert_circuit_depth does not support circuit type "
-        f"{type(circuit).__qualname__!r}.\n"
-        "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane."
-    )
+    try:
+        return get_adapter(circuit).get_depth(circuit)
+    except NotImplementedError:
+        raise TypeError(
+            f"assert_circuit_depth does not support circuit type "
+            f"{type(circuit).__qualname__!r}.\n"
+            "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
+        )
+    except TypeError:
+        raise TypeError(
+            f"assert_circuit_depth does not support circuit type "
+            f"{type(circuit).__qualname__!r}.\n"
+            "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
+        )
 
 
 def _get_width(circuit: object) -> int:
     """Extract qubit count from any supported circuit type."""
-    module = type(circuit).__module__
-    c: Any = circuit
+    from pytest_quantum.adapters import get_adapter
 
-    if module.startswith("qiskit"):
-        return int(c.num_qubits)
-
-    if module.startswith("cirq"):
-        return len(c.all_qubits())
-
-    if module.startswith("braket"):
-        return int(c.qubit_count)
-
-    if module.startswith("pennylane") or hasattr(circuit, "device"):
-        return len(c.device.wires)
-
-    if module.startswith("pytket"):
-        return int(c.n_qubits)
-
-    raise TypeError(
-        f"assert_circuit_width does not support circuit type "
-        f"{type(circuit).__qualname__!r}.\n"
-        "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane."
-    )
+    try:
+        return get_adapter(circuit).get_width(circuit)
+    except NotImplementedError:
+        raise TypeError(
+            f"assert_circuit_width does not support circuit type "
+            f"{type(circuit).__qualname__!r}.\n"
+            "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
+        )
+    except TypeError:
+        raise TypeError(
+            f"assert_circuit_width does not support circuit type "
+            f"{type(circuit).__qualname__!r}.\n"
+            "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
+        )
 
 
 def assert_gates_in_basis_set(
@@ -358,42 +224,27 @@ def assert_gates_in_basis_set(
         transpiled = transpile(qc, basis_gates=["cx", "u3"])
         assert_gates_in_basis_set(transpiled, {"cx", "u3"})
     """
-    module = type(circuit).__module__
-    c = cast("Any", circuit)
+    from pytest_quantum.adapters import get_adapter
 
     basis = {g.lower() for g in basis_gates} if not case_sensitive else set(basis_gates)
 
     def _normalise(name: str) -> str:
         return name if case_sensitive else name.lower()
 
-    non_basis: list[str] = []
-
-    if module.startswith("qiskit"):
-        for instr in c.data:
-            gate_name = instr.operation.name
-            if _normalise(gate_name) not in basis:
-                non_basis.append(gate_name)
-    elif module.startswith("cirq"):
-        for moment in c:
-            for op in moment.operations:
-                gate_name = str(op.gate)
-                if _normalise(gate_name) not in basis:
-                    non_basis.append(gate_name)
-    elif module.startswith("braket"):
-        for instr in c.instructions:
-            gate_name = type(instr.operator).__name__
-            if _normalise(gate_name) not in basis:
-                non_basis.append(gate_name)
-    elif module.startswith("pytket"):
-        for cmd in c.get_commands():
-            gate_name = cmd.op.type.name
-            if _normalise(gate_name) not in basis:
-                non_basis.append(gate_name)
-    else:
+    try:
+        adapter = get_adapter(circuit)
+        gates = adapter.count_gates(circuit)
+    except (TypeError, NotImplementedError):
+        module = type(circuit).__module__
         raise NotImplementedError(
             f"assert_gates_in_basis_set supports Qiskit, Cirq, Braket, Pytket; "
             f"got {module!r}"
         )
+
+    non_basis: list[str] = []
+    for gate, count in gates.items():
+        if _normalise(gate) not in basis:
+            non_basis.extend([gate] * count)
 
     if non_basis:
         unique = sorted(set(non_basis))
@@ -426,86 +277,26 @@ def assert_circuit_is_clifford(circuit: object) -> None:
             qc.cx(0, 1)
             assert_circuit_is_clifford(qc)
     """
-    module = type(circuit).__module__
-    c: Any = circuit
+    from pytest_quantum.adapters import get_adapter
 
-    if module.startswith("qiskit"):
-        ops = c.count_ops()
-        non_clifford = sorted(g for g in ops if g not in _CLIFFORD_QISKIT)
-        if non_clifford:
-            raise AssertionError(
-                f"Circuit contains non-Clifford gates: {non_clifford}\n"
-                f"  Clifford set: "
-                f"{sorted(g for g in _CLIFFORD_QISKIT if g not in ('measure', 'barrier', 'reset'))}"
-            )
-        return
+    try:
+        adapter = get_adapter(circuit)
+        is_cliff = adapter.is_clifford(circuit)
+    except (TypeError, NotImplementedError):
+        raise NotImplementedError(
+            f"assert_circuit_is_clifford supports Qiskit and Cirq (and also "
+            f"Braket, PennyLane, Pytket). Got: {type(circuit).__qualname__!r}"
+        )
 
-    if module.startswith("cirq"):
-        non_clifford_cirq: set[str] = set()
-        for moment in c:
-            for op in moment.operations:
-                name = str(op.gate).lower()
-                if name not in _CLIFFORD_CIRQ:
-                    non_clifford_cirq.add(str(op.gate))
-        if non_clifford_cirq:
-            raise AssertionError(
-                f"Circuit contains non-Clifford gates: {sorted(non_clifford_cirq)}"
-            )
-        return
-
-    if module.startswith("braket"):
-        non_clifford = [
-            type(instr.operator).__name__
-            for instr in c.instructions
-            if type(instr.operator).__name__ not in _CLIFFORD_BRAKET
-        ]
-        if non_clifford:
-            raise AssertionError(
-                f"Circuit contains non-Clifford gates: {sorted(set(non_clifford))}. "
-                f"Clifford set: {sorted(_CLIFFORD_BRAKET)}"
-            )
-        return
-
-    if module.startswith("pennylane") or hasattr(circuit, "device"):
-        tape = None
+    if not is_cliff:
         try:
-            tape = c.tape
-        except AttributeError:
-            pass
-        if tape is None:
-            try:
-                c()
-                tape = c.tape
-            except Exception:
-                pass
-        if tape is None:
-            raise TypeError("Cannot check Clifford: QNode tape could not be obtained.")
-        non_clifford = [
-            op.name for op in tape.operations if op.name not in _CLIFFORD_PENNYLANE
-        ]
-        if non_clifford:
-            raise AssertionError(
-                f"Circuit contains non-Clifford operations: "
-                f"{sorted(set(non_clifford))}. "
-                f"Clifford set: {sorted(_CLIFFORD_PENNYLANE)}"
-            )
-        return
-
-    if module.startswith("pytket"):
-        try:
-            from pytket.tableau import UnitaryTableau
-
-            UnitaryTableau(c)  # raises if circuit contains non-Clifford gates
-        except ImportError as exc:
-            raise ImportError("pytket is required: pip install pytket") from exc
-        except Exception as exc:
-            raise AssertionError(f"Circuit contains non-Clifford gates: {exc}") from exc
-        return
-
-    raise NotImplementedError(
-        f"assert_circuit_is_clifford supports Qiskit and Cirq (and also "
-        f"Braket, PennyLane, Pytket). Got: {type(circuit).__qualname__!r}"
-    )
+            all_names = sorted(adapter.gate_names(circuit))
+        except NotImplementedError:
+            all_names = []
+        raise AssertionError(
+            f"Circuit contains non-Clifford gates: {all_names}\n"
+            f"  Clifford set: consult adapter for {adapter.framework_name}"
+        )
 
 
 def assert_no_mid_circuit_measurement(circuit: object) -> None:
@@ -536,84 +327,22 @@ def assert_no_mid_circuit_measurement(circuit: object) -> None:
         qc.measure_all()
         assert_no_mid_circuit_measurement(qc)  # passes — measurements are terminal
     """
-    module = type(circuit).__module__
-    c: Any = circuit
+    from pytest_quantum.adapters import get_adapter
 
-    if module.startswith("qiskit"):
-        # Build a per-qubit timeline: track the last instruction index for each qubit
-        # If any gate comes after a measurement on the same qubit, it's mid-circuit
-        from qiskit.circuit import Measure
+    try:
+        adapter = get_adapter(circuit)
+        has_mid = adapter.has_mid_circuit_measurement(circuit)
+    except (TypeError, NotImplementedError):
+        module = type(circuit).__module__
+        raise NotImplementedError(
+            f"assert_no_mid_circuit_measurement supports Qiskit and Cirq; got {module!r}"
+        )
 
-        qubit_measure_idx: dict[int, int] = {}
-        violations: list[str] = []
-
-        for idx, instr in enumerate(c.data):
-            qubits = [c.find_bit(q).index for q in instr.qubits]
-            if isinstance(instr.operation, Measure):
-                for q in qubits:
-                    qubit_measure_idx[q] = idx
-            else:
-                op_name = instr.operation.name
-                if op_name in ("barrier",):
-                    continue
-                for q in qubits:
-                    if q in qubit_measure_idx:
-                        violations.append(
-                            f"qubit {q}: gate '{op_name}' at position {idx} "
-                            f"follows measurement at position {qubit_measure_idx[q]}"
-                        )
-
-        if violations:
-            raise AssertionError(
-                f"Mid-circuit measurements detected ({len(violations)} violation(s)):\n"
-                + "\n".join(f"  - {v}" for v in violations)
-                + "\n  Hint: move all measurements to the end of the circuit."
-            )
-        return
-
-    if module.startswith("cirq"):
-        import cirq
-
-        # In Cirq, measurements in moments before the last non-empty moment are mid-circuit
-        moments = list(c.moments)
-        if not moments:
-            return
-
-        # Find all moments with measurements
-        meas_moment_indices: list[int] = []
-        gate_moment_indices: list[int] = []
-
-        for i, moment in enumerate(moments):
-            has_meas = any(
-                isinstance(op.gate, cirq.MeasurementGate) for op in moment.operations
-            )
-            has_gate = any(
-                not isinstance(op.gate, cirq.MeasurementGate)
-                for op in moment.operations
-            )
-            if has_meas:
-                meas_moment_indices.append(i)
-            if has_gate:
-                gate_moment_indices.append(i)
-
-        if not meas_moment_indices or not gate_moment_indices:
-            return
-
-        last_gate_moment = max(gate_moment_indices)
-        mid_meas = [i for i in meas_moment_indices if i < last_gate_moment]
-
-        if mid_meas:
-            raise AssertionError(
-                f"Mid-circuit measurements detected in Cirq circuit.\n"
-                f"  Measurement moments: {mid_meas}\n"
-                f"  Last gate moment   : {last_gate_moment}\n"
-                f"  Hint: reorder operations so all measurements come last."
-            )
-        return
-
-    raise NotImplementedError(
-        f"assert_no_mid_circuit_measurement supports Qiskit and Cirq; got {module!r}"
-    )
+    if has_mid:
+        raise AssertionError(
+            "Mid-circuit measurements detected.\n"
+            "  Hint: move all measurements to the end of the circuit."
+        )
 
 
 def assert_has_diagram(circuit: object, expected: str, *, strict: bool = False) -> None:
@@ -643,19 +372,13 @@ def assert_has_diagram(circuit: object, expected: str, *, strict: bool = False) 
         qc.h(0)
         assert_has_diagram(qc, "H")
     """
-    module = type(circuit).__module__
-    c: Any = circuit
+    from pytest_quantum.adapters import get_adapter
 
-    if module.startswith("qiskit"):
-        diagram = str(c.draw("text"))
-    elif module.startswith("cirq"):
-        diagram = str(c)
-    elif module.startswith("pytket"):
-        try:
-            diagram = str(c)
-        except Exception as exc:
-            raise NotImplementedError("pytket diagram not available") from exc
-    else:
+    try:
+        adapter = get_adapter(circuit)
+        diagram = adapter.get_diagram(circuit)
+    except (TypeError, NotImplementedError):
+        module = type(circuit).__module__
         raise NotImplementedError(
             f"assert_has_diagram supports Qiskit and Cirq; got {module!r}"
         )

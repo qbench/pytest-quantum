@@ -115,9 +115,13 @@ def assert_xeb_fidelity_above(
                 pub_result = job.result()[0]
                 counts = _extract_sampler_counts(pub_result)
             except ImportError:
-                counts = _run_backend(transpiled, backend, shots)
+                job = backend.run(transpiled, shots=shots)
+                result = job.result()
+                counts = result.get_counts()
         else:
-            counts = _run_backend(transpiled, backend, shots)
+            job = backend.run(transpiled, shots=shots)
+            result = job.result()
+            counts = result.get_counts()
 
         total = sum(counts.values())
         if total == 0:
@@ -431,35 +435,4 @@ def assert_no_barren_plateau(
 # ---------------------------------------------------------------------------
 
 
-def _is_ibm_backend(backend: Any) -> bool:
-    """Return True if *backend* is a ``qiskit_ibm_runtime.IBMBackend``."""
-    try:
-        from qiskit_ibm_runtime import IBMBackend
-
-        return isinstance(backend, IBMBackend)
-    except ImportError:
-        return False
-
-
-def _run_backend(transpiled: Any, backend: Any, shots: int) -> dict[str, int]:
-    """Run a transpiled circuit on backend via backend.run()."""
-    job = backend.run(transpiled, shots=shots)
-    result = job.result()
-    counts: dict[str, int] = result.get_counts()
-    return counts
-
-
-def _extract_sampler_counts(pub_result: Any) -> dict[str, int]:
-    """Extract counts from SamplerV2 PubResult."""
-    data = pub_result.data
-    for name in ("meas", "c", "c0", "cr", "measure"):
-        bit_array = getattr(data, name, None)
-        if bit_array is not None and hasattr(bit_array, "get_counts"):
-            counts: dict[str, int] = bit_array.get_counts()
-            return counts
-    for name in getattr(data, "__dataclass_fields__", {}):
-        bit_array = getattr(data, name, None)
-        if bit_array is not None and hasattr(bit_array, "get_counts"):
-            counts = bit_array.get_counts()
-            return counts
-    raise AssertionError("Could not extract counts from SamplerV2 result.")
+from pytest_quantum._internal import _is_ibm_backend, _extract_sampler_counts
