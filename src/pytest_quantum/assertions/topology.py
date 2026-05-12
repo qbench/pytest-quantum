@@ -1,5 +1,6 @@
 """Topology and connectivity assertions for quantum circuits."""
 from __future__ import annotations
+import itertools
 from typing import TYPE_CHECKING
 from pytest_quantum.adapters import get_adapter
 
@@ -7,14 +8,35 @@ if TYPE_CHECKING:
     pass
 
 
+def _check_qubit_pairs(
+    gate_name: str,
+    qubits: list[int],
+    edges: set[tuple[int, int]],
+    violations: list[str],
+) -> None:
+    """Validate that all pairwise qubit combinations for a gate are in *edges*.
+
+    For 2-qubit gates, checks the single pair. For 3+ qubit gates, checks
+    every pairwise combination.
+    """
+    if len(qubits) < 2:
+        return
+    for qi, qj in itertools.combinations(qubits, 2):
+        pair = (qi, qj)
+        if pair not in edges and (qj, qi) not in edges:
+            violations.append(f"{gate_name} on qubits {tuple(qubits)} — missing edge {pair}")
+
+
 def assert_circuit_respects_topology(
     circuit: object,
     coupling_map: list[tuple[int, int]],
 ) -> None:
-    """Assert that all 2-qubit gates in *circuit* respect the *coupling_map*.
+    """Assert that all multi-qubit gates in *circuit* respect the *coupling_map*.
 
     Each 2-qubit gate's qubit pair must appear in the coupling map as an
-    undirected edge.
+    undirected edge. Gates acting on 3 or more qubits are validated by
+    checking that every pairwise combination of their qubit operands
+    appears in the coupling map.
 
     Args:
         circuit: A quantum circuit from any supported framework.
@@ -22,7 +44,7 @@ def assert_circuit_respects_topology(
             allowed 2-qubit interactions.
 
     Raises:
-        AssertionError: If any 2-qubit gate violates the coupling map.
+        AssertionError: If any multi-qubit gate violates the coupling map.
 
     Example::
 
@@ -63,15 +85,11 @@ def _check_topology_via_adapter(circuit: object, adapter: object, edges: set[tup
 
 
 def _check_qiskit_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
-    violations = []
+    violations: list[str] = []
     for instruction in circuit.data:  # type: ignore[attr-defined]
         qubits = [circuit.find_bit(q).index for q in instruction.qubits]  # type: ignore[attr-defined]
-        if len(qubits) == 2:
-            pair = (qubits[0], qubits[1])
-            if pair not in edges:
-                violations.append(
-                    f"{instruction.operation.name} on qubits {pair}"
-                )
+        if len(qubits) >= 2:
+            _check_qubit_pairs(instruction.operation.name, qubits, edges, violations)
     if violations:
         raise AssertionError(
             f"Circuit violates coupling map. Violations:\n"
@@ -81,18 +99,14 @@ def _check_qiskit_topology(circuit: object, edges: set[tuple[int, int]]) -> None
 
 def _check_cirq_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
     import cirq
-    violations = []
+    violations: list[str] = []
     qubit_list = sorted(circuit.all_qubits())  # type: ignore[attr-defined]
     qubit_to_idx = {q: i for i, q in enumerate(qubit_list)}
     for op in circuit.all_operations():  # type: ignore[attr-defined]
-        if len(op.qubits) == 2:
-            idx0 = qubit_to_idx[op.qubits[0]]
-            idx1 = qubit_to_idx[op.qubits[1]]
-            pair = (idx0, idx1)
-            if pair not in edges:
-                violations.append(
-                    f"{op.gate} on qubits {pair}"
-                )
+        if len(op.qubits) >= 2:
+            indices = [qubit_to_idx[q] for q in op.qubits]
+            gate_name = str(op.gate) if hasattr(op, "gate") else str(op)
+            _check_qubit_pairs(gate_name, indices, edges, violations)
     if violations:
         raise AssertionError(
             f"Circuit violates coupling map. Violations:\n"
@@ -101,14 +115,12 @@ def _check_cirq_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
 
 
 def _check_braket_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
-    violations = []
+    violations: list[str] = []
     for instruction in circuit.instructions:  # type: ignore[attr-defined]
-        if len(instruction.target) == 2:
-            pair = (int(instruction.target[0]), int(instruction.target[1]))
-            if pair not in edges:
-                violations.append(
-                    f"{instruction.operator.name} on qubits {pair}"
-                )
+        if len(instruction.target) >= 2:
+            qubits = [int(q) for q in instruction.target]
+            gate_name = instruction.operator.name if hasattr(instruction.operator, "name") else type(instruction.operator).__name__
+            _check_qubit_pairs(gate_name, qubits, edges, violations)
     if violations:
         raise AssertionError(
             f"Circuit violates coupling map. Violations:\n"
@@ -117,14 +129,11 @@ def _check_braket_topology(circuit: object, edges: set[tuple[int, int]]) -> None
 
 
 def _check_qibo_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
-    violations = []
+    violations: list[str] = []
     for gate in circuit.queue:  # type: ignore[attr-defined]
-        if len(gate.qubits) == 2:
-            pair = (gate.qubits[0], gate.qubits[1])
-            if pair not in edges:
-                violations.append(
-                    f"{gate.__class__.__name__} on qubits {pair}"
-                )
+        if len(gate.qubits) >= 2:
+            qubits = list(gate.qubits)
+            _check_qubit_pairs(gate.__class__.__name__, qubits, edges, violations)
     if violations:
         raise AssertionError(
             f"Circuit violates coupling map. Violations:\n"

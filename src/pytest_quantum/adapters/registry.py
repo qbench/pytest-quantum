@@ -19,12 +19,14 @@ class AdapterRegistry:
     """Registry that maps circuit objects to the correct :class:`FrameworkAdapter`.
 
     Adapters are tried in registration order; the first whose :meth:`detect`
-    returns ``True`` wins.  Results are cached by the top-level module prefix
-    of ``type(circuit).__module__`` (e.g. ``"qiskit"``, ``"cirq"``).
+    returns ``True`` wins.  Results are cached by the *adapter class* for
+    each top-level module prefix of ``type(circuit).__module__``, ensuring
+    that different circuit types from the same namespace don't collide.
 
     Attributes:
         _adapters: Registered adapter *classes* in priority order.
-        _cache: Instantiated adapters keyed by module prefix.
+        _cache: Instantiated adapters keyed by ``(module_prefix, adapter_cls)``
+            for collision-safe lookup.
     """
 
     def __init__(self) -> None:
@@ -51,6 +53,11 @@ class AdapterRegistry:
     def get(self, circuit: object) -> FrameworkAdapter:
         """Return the adapter instance for *circuit*.
 
+        The cache key combines the top-level module prefix with the concrete
+        circuit type's qualified name.  This prevents collisions when two
+        unrelated types share the same top-level module (e.g. a user library
+        that stuffs multiple circuit wrappers into a single package).
+
         Args:
             circuit: A quantum circuit from any supported framework.
 
@@ -60,16 +67,18 @@ class AdapterRegistry:
         Raises:
             TypeError: If no registered adapter recognises *circuit*.
         """
-        module = type(circuit).__module__
+        circuit_type = type(circuit)
+        module = circuit_type.__module__
         prefix = module.split(".")[0]
+        cache_key = f"{prefix}:{circuit_type.__qualname__}"
 
-        if prefix in self._cache:
-            return self._cache[prefix]
+        if cache_key in self._cache:
+            return self._cache[cache_key]
 
         for adapter_cls in self._adapters:
             if adapter_cls.detect(circuit):
                 instance = adapter_cls()
-                self._cache[prefix] = instance
+                self._cache[cache_key] = instance
                 return instance
 
         raise TypeError(

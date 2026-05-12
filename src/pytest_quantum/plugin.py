@@ -102,7 +102,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--quantum-report",
         action="store",
         dest="quantum_report",
-        default="none",
+        default=None,
         choices=["json", "html", "none"],
         help="Generate quantum test report (json, html, or none).",
     )
@@ -110,7 +110,7 @@ def pytest_addoption(parser: Parser) -> None:
         "--quantum-report-path",
         action="store",
         dest="quantum_report_path",
-        default="quantum-report",
+        default=None,
         help="Base path for quantum report file (extension added automatically).",
     )
 
@@ -161,22 +161,28 @@ def pytest_configure(config: Config) -> None:
         "quantum_retry(n): retry a quantum test up to n times on failure.",
     )
     # Set env var so snapshot helpers can detect the update flag without
-    # needing access to the pytest config object.
+    # needing access to the pytest config object.  Check CLI first, then INI.
     try:
-        if config.getoption("--quantum-update-snapshots", default=False):
-            os.environ["PYTEST_QUANTUM_UPDATE_SNAPSHOTS"] = "1"
+        update_snapshots = config.getoption("--quantum-update-snapshots", default=False)
     except (ValueError, AttributeError):
-        # getoption raises ValueError if the option is not registered yet
-        pass
+        update_snapshots = False
+    if not update_snapshots:
+        try:
+            update_snapshots = config.getini("quantum_update_snapshots")
+        except (ValueError, AttributeError):
+            pass
+    if update_snapshots:
+        os.environ["PYTEST_QUANTUM_UPDATE_SNAPSHOTS"] = "1"
 
     # Load and store configuration
     from pytest_quantum.config import load_config
 
     config._quantum_config = load_config(config)  # type: ignore[attr-defined]
 
-    # Register reporting plugin
-    report_format = config.getoption("quantum_report", default=None) or config.getini("quantum_report") or "none"
-    report_path = config.getoption("quantum_report_path", default=None) or config.getini("quantum_report_path") or "quantum-report"
+    # Register reporting plugin — use resolved config to respect INI values
+    qcfg = config._quantum_config  # type: ignore[attr-defined]
+    report_format = qcfg.report
+    report_path = qcfg.report_path
     if report_format != "none":
         from pytest_quantum.reporting import QuantumReportPlugin
         config.pluginmanager.register(
@@ -192,7 +198,10 @@ def pytest_configure(config: Config) -> None:
 
 def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
     """Skip quantum_slow and quantum_real tests unless appropriate flags are supplied."""
-    if not config.getoption("--quantum-slow", default=False):
+    qcfg = getattr(config, "_quantum_config", None)
+
+    run_slow = qcfg.slow if qcfg is not None else config.getoption("--quantum-slow", default=False)
+    if not run_slow:
         skip_slow = pytest.mark.skip(
             reason="Skipping quantum_slow test — pass --quantum-slow to run."
         )
@@ -200,7 +209,8 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
             if "quantum_slow" in item.keywords:
                 item.add_marker(skip_slow)
 
-    if not config.getoption("--quantum-real", default=False):
+    run_real = qcfg.real if qcfg is not None else config.getoption("--quantum-real", default=False)
+    if not run_real:
         skip_real = pytest.mark.skip(
             reason="real hardware tests skipped (pass --quantum-real)"
         )

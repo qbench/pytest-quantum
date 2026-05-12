@@ -54,11 +54,18 @@ class PennyLaneAdapter(FrameworkAdapter):
 
         Returns:
             ``True`` when ``type(circuit).__module__`` starts with
-            ``"pennylane"`` or the object has a ``device`` attribute.
+            ``"pennylane"`` or the object is a PennyLane ``QNode``.
         """
-        return type(circuit).__module__.startswith("pennylane") or hasattr(
-            circuit, "device"
-        )
+        if type(circuit).__module__.startswith("pennylane"):
+            return True
+        # Avoid broad `hasattr(circuit, "device")` which would match
+        # PyTorch models, USB wrappers, etc. Instead, check for the
+        # specific PennyLane QNode type when the package is available.
+        try:
+            import pennylane as qml
+            return isinstance(circuit, qml.QNode)
+        except ImportError:
+            return False
 
     def to_unitary(self, circuit: object) -> NDArray[np.complex128]:
         """Convert a PennyLane QNode to a unitary matrix via ``qml.matrix()``.

@@ -132,3 +132,71 @@ class TestShotCounting:
         report_file = pytester.path / "quantum-report.json"
         data = json.loads(report_file.read_text())
         assert data["total_shots"] == 1024
+
+    def test_cli_shots_tracked_in_report(self, pytester):
+        """Test that --quantum-shots is reflected in the report."""
+        pytester.makepyfile(
+            """
+            import pytest
+
+            @pytest.mark.quantum
+            def test_with_cli_shots(quantum_shots):
+                assert quantum_shots == 2048
+            """
+        )
+        result = pytester.runpytest(
+            "--quantum-report=json", "--quantum-shots=2048", "-v"
+        )
+        result.assert_outcomes(passed=1)
+        report_file = pytester.path / "quantum-report.json"
+        data = json.loads(report_file.read_text())
+        assert data["total_shots"] == 2048
+
+
+class TestIniConfiguration:
+    def test_ini_report_format(self, pytester):
+        """Test that quantum_report INI option triggers report generation."""
+        pytester.makeini(
+            """
+            [pytest]
+            quantum_report = json
+            """
+        )
+        pytester.makepyfile(
+            """
+            import pytest
+
+            @pytest.mark.quantum
+            def test_q():
+                pass
+            """
+        )
+        # No --quantum-report CLI flag: INI should take effect
+        result = pytester.runpytest("-v")
+        result.assert_outcomes(passed=1)
+        report_file = pytester.path / "quantum-report.json"
+        assert report_file.exists()
+        data = json.loads(report_file.read_text())
+        assert data["total_quantum_tests"] == 1
+
+    def test_ini_report_path(self, pytester):
+        """Test that quantum_report_path INI option is respected."""
+        pytester.makeini(
+            """
+            [pytest]
+            quantum_report = json
+            quantum_report_path = custom-report
+            """
+        )
+        pytester.makepyfile(
+            """
+            import pytest
+
+            @pytest.mark.quantum
+            def test_q():
+                pass
+            """
+        )
+        result = pytester.runpytest("-v")
+        result.assert_outcomes(passed=1)
+        assert (pytester.path / "custom-report.json").exists()

@@ -37,6 +37,10 @@ class QuantumReportPlugin:
         self.report_format = report_format
         self.report_path = report_path
         self.data = QuantumSessionData()
+        # Track which nodeids we've already counted to prevent double-counting
+        # from retry intermediate attempts (makereport fires for every
+        # runtestprotocol call, even with log=False).
+        self._seen_nodeids: set[str] = set()
         self._quantum_fixtures = frozenset({
             "aer_simulator", "aer_statevector_simulator", "aer_noise_simulator",
             "qiskit_sampler", "qiskit_estimator",
@@ -91,9 +95,30 @@ class QuantumReportPlugin:
                 return True
         return False
 
+    def _resolve_shots(self, item: pytest.Item) -> int | None:
+        """Resolve the shot count for a test item using the same precedence
+        as the ``quantum_shots`` fixture: marker > CLI > INI > None."""
+        # Per-test marker (highest priority)
+        marker_val = getattr(item, "_quantum_shots", None)
+        if marker_val is not None:
+            return int(marker_val)
+        # Resolved config (CLI > INI)
+        qcfg = getattr(item.config, "_quantum_config", None)
+        if qcfg is not None and qcfg.shots is not None:
+            return qcfg.shots
+        return None
+
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> Any:  # type: ignore[type-arg]
-        """Track quantum test results."""
+        """Track quantum test results.
+
+        When ``quantum_retry`` is active, ``runtestprotocol(log=False)`` is
+        called multiple times for the same item. Each call still invokes
+        ``pytest_runtest_makereport``, so we use a per-nodeid seen-set to
+        record only the **last** call-phase report for each test.  If a
+        nodeid appears a second time (retry) we undo the previous counts
+        and replace them.
+        """
         outcome = yield
         report = outcome.get_result()
 
@@ -102,6 +127,34 @@ class QuantumReportPlugin:
 
         if not self._is_quantum_test(item):
             return
+
+        nodeid = item.nodeid
+
+        if nodeid in self._seen_nodeids:
+            # We've seen this test before (retry). Undo previous counts
+            # by finding the existing detail entry and subtracting.
+            prev = None
+            for i, d in enumerate(self.data.test_details):
+                if d["nodeid"] == nodeid:
+                    prev = (i, d)
+            if prev is not None:
+                idx, detail = prev
+                prev_outcome = detail["outcome"]
+                if prev_outcome == "passed":
+                    self.data.passed -= 1
+                elif prev_outcome == "failed":
+                    self.data.failed -= 1
+                elif prev_outcome == "skipped":
+                    self.data.skipped -= 1
+                self.data.total_quantum_tests -= 1
+                # Undo shot accounting
+                prev_shots = detail.get("_shots")
+                if prev_shots:
+                    self.data.total_shots -= prev_shots
+                # Remove old detail
+                self.data.test_details.pop(idx)
+
+        self._seen_nodeids.add(nodeid)
 
         self.data.total_quantum_tests += 1
 
@@ -112,10 +165,10 @@ class QuantumReportPlugin:
         elif report.skipped:
             self.data.skipped += 1
 
-        # Track shots
-        shots = getattr(item, "_quantum_shots", None)
+        # Track shots — resolve through full precedence chain
+        shots = self._resolve_shots(item)
         if shots is not None:
-            self.data.total_shots += int(shots)
+            self.data.total_shots += shots
 
         # Track frameworks
         if hasattr(item, "fixturenames"):
@@ -128,11 +181,12 @@ class QuantumReportPlugin:
         if getattr(item, "_quantum_retried", False):
             self.data.retried += 1
 
-        # Store test detail
+        # Store test detail (include _shots for undo bookkeeping)
         self.data.test_details.append({
-            "nodeid": item.nodeid,
+            "nodeid": nodeid,
             "outcome": report.outcome,
             "duration": report.duration,
+            "_shots": shots,
         })
 
     def pytest_terminal_summary(
@@ -181,6 +235,11 @@ def _generate_json_report(data: QuantumSessionData, path: str) -> None:
     d = dataclasses.asdict(data)
     # Convert sets to sorted lists for JSON serialization
     d["frameworks_used"] = sorted(d["frameworks_used"])
+    # Strip internal bookkeeping keys from test details
+    for detail in d.get("test_details", []):
+        for key in list(detail):
+            if key.startswith("_"):
+                del detail[key]
     with open(path, "w") as f:
         json.dump(d, f, indent=2, default=str)
 

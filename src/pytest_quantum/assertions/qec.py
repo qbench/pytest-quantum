@@ -95,7 +95,7 @@ def assert_code_distance(
     # Generate all non-identity Paulis and check if they're in the normalizer
     # but not in the stabilizer group
     # For efficiency, we use the stabilizer group structure
-    
+
     # Build stabilizer group (all products of stabilizers)
     k = len(stabilizers)
     stab_group = set()

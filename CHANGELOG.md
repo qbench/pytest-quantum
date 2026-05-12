@@ -32,9 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - CI jobs for Pytket, Stim, Braket, Mitiq, and Hypothesis
 
 ### Changed
-- **Plugin architecture**: `plugin.py` split into focused fixture submodules
-  (`fixtures/qiskit.py`, `fixtures/cirq.py`, `fixtures/hardware.py`,
-  `fixtures/benchmarks.py`, `fixtures/other.py`).
+- **BREAKING: Plugin architecture**: `plugin.py` split into focused fixture
+  submodules (`fixtures/qiskit.py`, `fixtures/cirq.py`, `fixtures/hardware.py`,
+  `fixtures/benchmarks.py`, `fixtures/other.py`). Code that imported directly
+  from ``pytest_quantum.plugin`` (e.g. fixture helpers) must update imports to
+  the new submodule paths.
 - **`@pytest.mark.shots(n)` and `@pytest.mark.significance(p)` now work**: per-test
   markers override CLI and ini values.
 - `converters/to_unitary.py` now delegates to the adapter registry internally.

@@ -34,6 +34,22 @@ class TestAssertCircuitRespectsTopology:
         coupling = [(0, 1)]
         assert_circuit_respects_topology(qc, coupling)
 
+    def test_three_qubit_gate_fails_missing_edges(self):
+        """A CCX (Toffoli) gate on qubits (0, 2, 1) should fail if (0, 2)
+        is not in the coupling map."""
+        qc = QuantumCircuit(3)
+        qc.ccx(0, 2, 1)
+        coupling = [(0, 1)]
+        with pytest.raises(AssertionError, match="violates coupling map"):
+            assert_circuit_respects_topology(qc, coupling)
+
+    def test_three_qubit_gate_passes_full_connectivity(self):
+        """CCX should pass when all pairwise edges are present."""
+        qc = QuantumCircuit(3)
+        qc.ccx(0, 1, 2)
+        coupling = [(0, 1), (0, 2), (1, 2)]
+        assert_circuit_respects_topology(qc, coupling)
+
 
 class TestAssertRoutingOverheadBelow:
     def test_passes_low_overhead(self):
