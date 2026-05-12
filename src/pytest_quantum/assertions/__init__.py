@@ -78,8 +78,10 @@ from pytest_quantum.assertions.noise_models import (
     assert_no_leakage,
 )
 from pytest_quantum.assertions.observables import (
+    assert_cost_decreases,
     assert_expectation_value_close,
     assert_ground_state_energy_close,
+    assert_vqe_converges,
 )
 from pytest_quantum.assertions.primitives import (
     assert_estimator_close,
@@ -125,9 +127,27 @@ from pytest_quantum.assertions.unitary import (
     assert_transpilation_preserves_semantics,
     assert_unitary,
 )
+from pytest_quantum.assertions.resource_estimation import (
+    assert_ancilla_count_below,
+    assert_clifford_t_depth_below,
+    assert_t_count_below,
+)
+from pytest_quantum.assertions.topology import (
+    assert_circuit_respects_topology,
+    assert_routing_overhead_below,
+)
+from pytest_quantum.assertions.tomography import (
+    assert_process_tomography_close,
+    assert_state_tomography_close,
+)
+from pytest_quantum.assertions.qec import (
+    assert_code_distance,
+    assert_syndrome_decoding_correct,
+)
 
 __all__ = [
     "assert_amplitude_damping_channel",
+    "assert_ancilla_count_below",
     "assert_backend_calibration",
     "assert_backend_executes",
     "assert_bloch_sphere_close",
@@ -138,10 +158,14 @@ __all__ = [
     "assert_circuit_depth",
     "assert_circuit_fits_backend",
     "assert_circuit_is_clifford",
+    "assert_circuit_respects_topology",
+    "assert_cost_decreases",
     "assert_circuit_sweep",
     "assert_circuit_sweep_states",
     "assert_circuit_width",
     "assert_circuits_equivalent",
+    "assert_clifford_t_depth_below",
+    "assert_code_distance",
     "assert_commutes_with",
     "assert_counts_close",
     "assert_cross_entropy_below",
@@ -180,6 +204,7 @@ __all__ = [
     "assert_pec_reduces_error",
     "assert_positive_semidefinite",
     "assert_process_fidelity_above",
+    "assert_process_tomography_close",
     "assert_purity_above",
     "assert_qasm2_roundtrip",
     "assert_qasm_roundtrip",
@@ -188,22 +213,27 @@ __all__ = [
     "assert_quantum_volume",
     "assert_randomized_benchmarking",
     "assert_real_counts_close",
+    "assert_routing_overhead_below",
     "assert_sampler_distribution",
     "assert_schmidt_rank_at_most",
     "assert_stabilizer_state",
     "assert_state_fidelity_above",
+    "assert_state_tomography_close",
     "assert_states_close",
     "assert_stim_detector_error_rate_below",
     "assert_stim_logical_error_rate_below",
+    "assert_syndrome_decoding_correct",
     "assert_t1_above",
     "assert_t2_above",
     "assert_t2star_above",
+    "assert_t_count_below",
     "assert_trace_distance_below",
     "assert_transpilation_depth_below",
     "assert_transpilation_equivalent",
     "assert_transpilation_preserves_semantics",
     "assert_unitary",
     "assert_unitary_snapshot",
+    "assert_vqe_converges",
     "assert_xeb_fidelity_above",
     "assert_zne_expectation_close",
     "assert_zne_reduces_error",

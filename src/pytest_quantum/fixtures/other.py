@@ -235,6 +235,48 @@ def tequila_backend() -> Any:
     return tq
 
 
+@pytest.fixture(scope="session")
+def cuda_quantum_simulator() -> object:
+    """Session-scoped CUDA Quantum module.
+
+    CUDA Quantum uses kernel-based execution, so this returns the ``cudaq``
+    module itself rather than a simulator object.
+
+    Example::
+
+        def test_cudaq(cuda_quantum_simulator):
+            cudaq = cuda_quantum_simulator
+            kernel = cudaq.make_kernel()
+            q = kernel.qalloc()
+            kernel.h(q)
+    """
+    _require("cudaq", "cuda_quantum")
+    import cudaq
+
+    return cudaq
+
+
+@pytest.fixture(scope="session")
+def qibo_backend() -> object:
+    """Session-scoped Qibo backend (numpy).
+
+    Sets the Qibo backend to ``numpy`` and returns the ``qibo`` module.
+
+    Example::
+
+        def test_qibo(qibo_backend):
+            from qibo import Circuit, gates
+            c = Circuit(2)
+            c.add(gates.H(0))
+            c.add(gates.CNOT(0, 1))
+    """
+    _require("qibo", "qibo")
+    import qibo
+
+    qibo.set_backend("numpy")
+    return qibo
+
+
 @pytest.fixture
 def quantum_backend_name(request: pytest.FixtureRequest) -> str:
     """Parametrized backend name from @pytest.mark.quantum_backends.
@@ -263,6 +305,8 @@ def quantum_backend_name(request: pytest.FixtureRequest) -> str:
         "pytket": "pytket",
         "stim": "stim",
         "qutip": "qutip",
+        "cuda_quantum": "cudaq",
+        "qibo": "qibo",
     }
     if name in sdk_map and importlib.util.find_spec(sdk_map[name]) is None:
         pytest.skip(f"{name!r} SDK not installed (pip install pytest-quantum[{name}])")
@@ -297,6 +341,8 @@ def quantum_backend(
         "braket": "braket_simulator",
         "pytket": "pytket_circuit_factory",
         "stim": "stim_sampler",
+        "cuda_quantum": "cuda_quantum_simulator",
+        "qibo": "qibo_backend",
     }
     fixture_name = fixture_map.get(quantum_backend_name)
     if fixture_name is None:

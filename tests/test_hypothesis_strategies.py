@@ -116,6 +116,39 @@ class TestKrausChannelStrategy:
         _inner()
 
 
+@pytest.mark.skipif(not HAS_HYPOTHESIS, reason="hypothesis not installed")
+class TestQiskitCircuits:
+    def test_generates_valid_circuit(self) -> None:
+        from hypothesis import given, settings
+
+        from pytest_quantum.hypothesis_strategies import qiskit_circuits
+
+        @given(qiskit_circuits())
+        @settings(max_examples=5, deadline=None)
+        def _inner(qc: object) -> None:
+            from qiskit import QuantumCircuit
+            assert isinstance(qc, QuantumCircuit)
+            assert qc.num_qubits >= 1
+
+        _inner()
+
+
+@pytest.mark.skipif(not HAS_HYPOTHESIS, reason="hypothesis not installed")
+class TestCirqCircuits:
+    def test_generates_valid_circuit(self) -> None:
+        from hypothesis import given, settings
+
+        from pytest_quantum.hypothesis_strategies import cirq_circuits
+
+        @given(cirq_circuits())
+        @settings(max_examples=5, deadline=None)
+        def _inner(circuit: object) -> None:
+            import cirq
+            assert isinstance(circuit, cirq.Circuit)
+
+        _inner()
+
+
 def test_hypothesis_not_installed_raises() -> None:
     """Without hypothesis, strategies raise ImportError."""
     import importlib

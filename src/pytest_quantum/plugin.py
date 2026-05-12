@@ -98,6 +98,21 @@ def pytest_addoption(parser: Parser) -> None:
         default=False,
         help="Run only tests marked with @pytest.mark.quantum or using quantum fixtures.",
     )
+    group.addoption(
+        "--quantum-report",
+        action="store",
+        dest="quantum_report",
+        default="none",
+        choices=["json", "html", "none"],
+        help="Generate quantum test report (json, html, or none).",
+    )
+    group.addoption(
+        "--quantum-report-path",
+        action="store",
+        dest="quantum_report_path",
+        default="quantum-report",
+        help="Base path for quantum report file (extension added automatically).",
+    )
 
     # ini options
     parser.addini("quantum_shots", "Default shot count for quantum tests", type="string", default="")
@@ -105,6 +120,8 @@ def pytest_addoption(parser: Parser) -> None:
     parser.addini("quantum_slow", "Run quantum_slow tests by default", type="bool", default=False)
     parser.addini("quantum_real", "Run quantum_real tests by default", type="bool", default=False)
     parser.addini("quantum_update_snapshots", "Update snapshots by default", type="bool", default=False)
+    parser.addini("quantum_report", "Quantum report format (json, html, none)", default="none")
+    parser.addini("quantum_report_path", "Base path for quantum report", default="quantum-report")
 
 
 def pytest_configure(config: Config) -> None:
@@ -157,6 +174,16 @@ def pytest_configure(config: Config) -> None:
 
     config._quantum_config = load_config(config)  # type: ignore[attr-defined]
 
+    # Register reporting plugin
+    report_format = config.getoption("quantum_report", default=None) or config.getini("quantum_report") or "none"
+    report_path = config.getoption("quantum_report_path", default=None) or config.getini("quantum_report_path") or "quantum-report"
+    if report_format != "none":
+        from pytest_quantum.reporting import QuantumReportPlugin
+        config.pluginmanager.register(
+            QuantumReportPlugin(report_format, report_path),
+            name="quantum-report",
+        )
+
 
 # ---------------------------------------------------------------------------
 # Hooks — collection
@@ -193,6 +220,8 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
             "benchmark_suite", "ibm_backend", "ionq_backend",
             "quantinuum_backend", "braket_cloud_device", "qutip_solver",
             "tequila_backend",
+            "cuda_quantum_simulator",
+            "qibo_backend",
         }
         selected = []
         deselected = []

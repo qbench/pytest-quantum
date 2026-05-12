@@ -118,6 +118,7 @@ def to_unitary(circuit: object) -> NDArray[np.complex128]:
             f"Unrecognised circuit type: {type(circuit).__qualname__!r}.\n"
             "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
             "braket.circuits.Circuit, pennylane QNode, pytket Circuit, "
-            "qutip.Qobj, tequila QCircuit.\n"
+            "qutip.Qobj, tequila QCircuit, CUDA Quantum kernel, "
+            "Qibo Circuit.\n"
             "For graphix patterns use assert_state_fidelity_above() instead."
         )

@@ -77,7 +77,8 @@ class AdapterRegistry:
             f"(module={module!r}).\n"
             "pytest-quantum supports: qiskit.QuantumCircuit, cirq.Circuit, "
             "braket.circuits.Circuit, pennylane QNode, pytket Circuit, "
-            "qutip.Qobj, tequila QCircuit.\n"
+            "qutip.Qobj, tequila QCircuit, CUDA Quantum kernel, "
+            "Qibo Circuit.\n"
             "Register a custom adapter with register_adapter()."
         )
 
@@ -194,5 +195,19 @@ try:
     from pytest_quantum.adapters.tequila import TequilaAdapter
 
     _registry.register(TequilaAdapter)
+except ImportError:  # pragma: no cover
+    pass
+
+try:
+    from pytest_quantum.adapters.cuda_quantum import CudaQuantumAdapter
+
+    _registry.register(CudaQuantumAdapter)
+except ImportError:  # pragma: no cover
+    pass
+
+try:
+    from pytest_quantum.adapters.qibo import QiboAdapter
+
+    _registry.register(QiboAdapter)
 except ImportError:  # pragma: no cover
     pass
