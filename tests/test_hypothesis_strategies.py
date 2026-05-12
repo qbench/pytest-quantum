@@ -127,6 +127,7 @@ class TestQiskitCircuits:
         @settings(max_examples=5, deadline=None)
         def _inner(qc: object) -> None:
             from qiskit import QuantumCircuit
+
             assert isinstance(qc, QuantumCircuit)
             assert qc.num_qubits >= 1
 
@@ -144,6 +145,7 @@ class TestCirqCircuits:
         @settings(max_examples=5, deadline=None)
         def _inner(circuit: object) -> None:
             import cirq
+
             assert isinstance(circuit, cirq.Circuit)
 
         _inner()

@@ -435,4 +435,7 @@ def assert_no_barren_plateau(
 # ---------------------------------------------------------------------------
 
 
-from pytest_quantum._internal import _is_ibm_backend, _extract_sampler_counts
+from pytest_quantum._internal import (  # noqa: E402
+    _extract_sampler_counts,
+    _is_ibm_backend,
+)

@@ -1,10 +1,10 @@
 """Resource estimation assertions for quantum circuits."""
-from __future__ import annotations
-from typing import TYPE_CHECKING, Any, cast
-from pytest_quantum.adapters import get_adapter
 
-if TYPE_CHECKING:
-    pass
+from __future__ import annotations
+
+from typing import Any, cast
+
+from pytest_quantum.adapters import get_adapter
 
 _T_GATE_NAMES = frozenset({"t", "tdg"})
 
@@ -30,8 +30,7 @@ def assert_t_count_below(circuit: object, max_t: int) -> None:
     t_count = sum(v for k, v in gates.items() if k.lower() in _T_GATE_NAMES)
     if t_count >= max_t:
         raise AssertionError(
-            f"T-gate count {t_count} is not below {max_t}.\n"
-            f"Gate counts: {gates}"
+            f"T-gate count {t_count} is not below {max_t}.\nGate counts: {gates}"
         )
 
 
@@ -121,7 +120,11 @@ def _compute_t_depth_generic(circuit: object) -> int:
     elif mod.startswith("braket"):
         c = cast("Any", circuit)
         for instr in c.instructions:
-            name = instr.operator.name if hasattr(instr.operator, "name") else type(instr.operator).__name__
+            name = (
+                instr.operator.name
+                if hasattr(instr.operator, "name")
+                else type(instr.operator).__name__
+            )
             qubits = [int(q) for q in instr.target]
             ops.append((name, qubits))
     else:
@@ -181,6 +184,5 @@ def assert_clifford_t_depth_below(circuit: object, max_depth: int) -> None:
         adapter = get_adapter(circuit)
         gates = adapter.count_gates(circuit)
         raise AssertionError(
-            f"T-depth {t_depth} is not below {max_depth}.\n"
-            f"Gate counts: {gates}"
+            f"T-depth {t_depth} is not below {max_depth}.\nGate counts: {gates}"
         )

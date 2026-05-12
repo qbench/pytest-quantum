@@ -1,9 +1,10 @@
-import pytest
 import numpy as np
+import pytest
+
 from pytest_quantum.assertions.qec import (
+    _pauli_str_to_symplectic,
     assert_code_distance,
     assert_syndrome_decoding_correct,
-    _pauli_str_to_symplectic,
 )
 
 

@@ -238,6 +238,7 @@ def qiskit_circuits(
         @given(qiskit_circuits())
         def test_circuit_has_unitary(qc):
             from pytest_quantum import assert_unitary
+
             u = to_unitary(qc)
             assert_unitary(u)
     """

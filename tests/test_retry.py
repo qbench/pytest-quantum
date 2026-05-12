@@ -1,4 +1,5 @@
 """Tests for quantum_retry marker."""
+
 from __future__ import annotations
 
 import pytest
@@ -62,6 +63,7 @@ class TestQuantumRetry:
         result = pytester.runpytest("--quantum-report=json", "-v")
         result.assert_outcomes(passed=1)
         import json
+
         report_file = pytester.path / "quantum-report.json"
         data = json.loads(report_file.read_text())
         assert data["total_quantum_tests"] == 1

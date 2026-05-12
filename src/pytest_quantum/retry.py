@@ -1,10 +1,16 @@
 """Quantum test retry support for flaky statistical tests."""
+
 from __future__ import annotations
 
-import pytest
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    import pytest
 
 
-def pytest_runtest_protocol(item: pytest.Item, nextitem: pytest.Item | None) -> object | None:
+def pytest_runtest_protocol(
+    item: pytest.Item, nextitem: pytest.Item | None
+) -> object | None:
     """Retry tests marked with @pytest.mark.quantum_retry(n=N)."""
     marker = item.get_closest_marker("quantum_retry")
     if marker is None:

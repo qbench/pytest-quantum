@@ -88,11 +88,20 @@ from pytest_quantum.assertions.primitives import (
     assert_sampler_distribution,
 )
 from pytest_quantum.assertions.qasm import assert_qasm2_roundtrip, assert_qasm_roundtrip
+from pytest_quantum.assertions.qec import (
+    assert_code_distance,
+    assert_syndrome_decoding_correct,
+)
 from pytest_quantum.assertions.quantum_ml import (
     assert_entanglement_capability_above,
     assert_expressibility_above,
     assert_no_barren_plateau,
     assert_xeb_fidelity_above,
+)
+from pytest_quantum.assertions.resource_estimation import (
+    assert_ancilla_count_below,
+    assert_clifford_t_depth_below,
+    assert_t_count_below,
 )
 from pytest_quantum.assertions.snapshot import (
     assert_distribution_snapshot,
@@ -122,27 +131,18 @@ from pytest_quantum.assertions.sweeps import (
     assert_circuit_sweep_states,
     assert_parametrized_unitary_continuous,
 )
-from pytest_quantum.assertions.unitary import (
-    assert_circuits_equivalent,
-    assert_transpilation_preserves_semantics,
-    assert_unitary,
-)
-from pytest_quantum.assertions.resource_estimation import (
-    assert_ancilla_count_below,
-    assert_clifford_t_depth_below,
-    assert_t_count_below,
+from pytest_quantum.assertions.tomography import (
+    assert_process_tomography_close,
+    assert_state_tomography_close,
 )
 from pytest_quantum.assertions.topology import (
     assert_circuit_respects_topology,
     assert_routing_overhead_below,
 )
-from pytest_quantum.assertions.tomography import (
-    assert_process_tomography_close,
-    assert_state_tomography_close,
-)
-from pytest_quantum.assertions.qec import (
-    assert_code_distance,
-    assert_syndrome_decoding_correct,
+from pytest_quantum.assertions.unitary import (
+    assert_circuits_equivalent,
+    assert_transpilation_preserves_semantics,
+    assert_unitary,
 )
 
 __all__ = [
@@ -159,7 +159,6 @@ __all__ = [
     "assert_circuit_fits_backend",
     "assert_circuit_is_clifford",
     "assert_circuit_respects_topology",
-    "assert_cost_decreases",
     "assert_circuit_sweep",
     "assert_circuit_sweep_states",
     "assert_circuit_width",
@@ -167,6 +166,7 @@ __all__ = [
     "assert_clifford_t_depth_below",
     "assert_code_distance",
     "assert_commutes_with",
+    "assert_cost_decreases",
     "assert_counts_close",
     "assert_cross_entropy_below",
     "assert_cross_platform_equivalent",

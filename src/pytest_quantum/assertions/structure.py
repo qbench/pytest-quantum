@@ -7,8 +7,6 @@ compiler output or ensuring a circuit meets hardware constraints.
 
 from __future__ import annotations
 
-from typing import Any, cast
-
 
 def assert_circuit_depth(
     circuit: object,
@@ -130,7 +128,7 @@ def assert_gate_count(
         raise NotImplementedError(
             f"assert_gate_count supports Qiskit, Cirq, Braket, PennyLane, "
             f"and Pytket. Got circuit type: {type(circuit).__qualname__!r}."
-        )
+        ) from None
 
     # For case-insensitive matching (Qiskit uses lowercase, others may not):
     name_lower = gate_name.lower()
@@ -163,13 +161,13 @@ def _get_depth(circuit: object) -> int:
             f"assert_circuit_depth does not support circuit type "
             f"{type(circuit).__qualname__!r}.\n"
             "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
-        )
+        ) from None
     except TypeError:
         raise TypeError(
             f"assert_circuit_depth does not support circuit type "
             f"{type(circuit).__qualname__!r}.\n"
             "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
-        )
+        ) from None
 
 
 def _get_width(circuit: object) -> int:
@@ -183,13 +181,13 @@ def _get_width(circuit: object) -> int:
             f"assert_circuit_width does not support circuit type "
             f"{type(circuit).__qualname__!r}.\n"
             "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
-        )
+        ) from None
     except TypeError:
         raise TypeError(
             f"assert_circuit_width does not support circuit type "
             f"{type(circuit).__qualname__!r}.\n"
             "Supported frameworks: Qiskit, Cirq, Amazon Braket, PennyLane, Pytket."
-        )
+        ) from None
 
 
 def assert_gates_in_basis_set(
@@ -239,7 +237,7 @@ def assert_gates_in_basis_set(
         raise NotImplementedError(
             f"assert_gates_in_basis_set supports Qiskit, Cirq, Braket, Pytket; "
             f"got {module!r}"
-        )
+        ) from None
 
     non_basis: list[str] = []
     for gate, count in gates.items():
@@ -286,7 +284,7 @@ def assert_circuit_is_clifford(circuit: object) -> None:
         raise NotImplementedError(
             f"assert_circuit_is_clifford supports Qiskit and Cirq (and also "
             f"Braket, PennyLane, Pytket). Got: {type(circuit).__qualname__!r}"
-        )
+        ) from None
 
     if not is_cliff:
         try:
@@ -336,7 +334,7 @@ def assert_no_mid_circuit_measurement(circuit: object) -> None:
         module = type(circuit).__module__
         raise NotImplementedError(
             f"assert_no_mid_circuit_measurement supports Qiskit and Cirq; got {module!r}"
-        )
+        ) from None
 
     if has_mid:
         raise AssertionError(
@@ -381,7 +379,7 @@ def assert_has_diagram(circuit: object, expected: str, *, strict: bool = False) 
         module = type(circuit).__module__
         raise NotImplementedError(
             f"assert_has_diagram supports Qiskit and Cirq; got {module!r}"
-        )
+        ) from None
 
     if strict:
         if diagram.strip() != expected.strip():

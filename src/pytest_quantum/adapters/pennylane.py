@@ -63,6 +63,7 @@ class PennyLaneAdapter(FrameworkAdapter):
         # specific PennyLane QNode type when the package is available.
         try:
             import pennylane as qml
+
             return isinstance(circuit, qml.QNode)
         except ImportError:
             return False
@@ -181,10 +182,7 @@ class PennyLaneAdapter(FrameworkAdapter):
             ``True`` if all operations are in the Clifford set.
         """
         tape = self._get_tape(circuit)
-        for op in tape.operations:
-            if op.name not in _CLIFFORD_PENNYLANE:
-                return False
-        return True
+        return all(op.name in _CLIFFORD_PENNYLANE for op in tape.operations)
 
     def has_mid_circuit_measurement(self, circuit: object) -> bool:
         """Not supported for PennyLane QNodes.

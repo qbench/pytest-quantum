@@ -284,4 +284,4 @@ def assert_noise_fidelity_above(
 # ---------------------------------------------------------------------------
 
 
-from pytest_quantum._internal import _kraus_to_choi
+from pytest_quantum._internal import _kraus_to_choi  # noqa: E402

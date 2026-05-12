@@ -3,6 +3,7 @@
 Reads defaults from pyproject.toml [tool.pytest.ini_options], pytest.ini,
 or setup.cfg. CLI options override ini values.
 """
+
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -67,13 +68,25 @@ def load_config(config: Config) -> QuantumConfig:
         cli_report_path = None
 
     # Resolve: CLI > ini > default
-    shots = cli_shots if cli_shots is not None else (int(ini_shots) if ini_shots else None)
-    significance = cli_significance if cli_significance is not None else (float(ini_significance) if ini_significance else None)
+    shots = (
+        cli_shots if cli_shots is not None else (int(ini_shots) if ini_shots else None)
+    )
+    significance = (
+        cli_significance
+        if cli_significance is not None
+        else (float(ini_significance) if ini_significance else None)
+    )
     slow = cli_slow or bool(ini_slow)
     real = cli_real or bool(ini_real)
     update = cli_update or bool(ini_update)
-    report = cli_report if cli_report is not None else (ini_report if ini_report else "none")
-    report_path = cli_report_path if cli_report_path is not None else (ini_report_path if ini_report_path else "quantum-report")
+    report = (
+        cli_report if cli_report is not None else (ini_report if ini_report else "none")
+    )
+    report_path = (
+        cli_report_path
+        if cli_report_path is not None
+        else (ini_report_path if ini_report_path else "quantum-report")
+    )
 
     return QuantumConfig(
         shots=shots,

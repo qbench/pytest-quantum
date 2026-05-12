@@ -7,12 +7,7 @@ are auto-registered at import time via the block at the bottom of this file.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
-
 from pytest_quantum.adapters.protocol import FrameworkAdapter
-
-if TYPE_CHECKING:
-    pass
 
 
 class AdapterRegistry:
@@ -43,7 +38,9 @@ class AdapterRegistry:
             TypeError: If *adapter_cls* is not a subclass of
                 :class:`FrameworkAdapter`.
         """
-        if not (isinstance(adapter_cls, type) and issubclass(adapter_cls, FrameworkAdapter)):
+        if not (
+            isinstance(adapter_cls, type) and issubclass(adapter_cls, FrameworkAdapter)
+        ):
             raise TypeError(
                 f"Expected a FrameworkAdapter subclass, got {adapter_cls!r}"
             )

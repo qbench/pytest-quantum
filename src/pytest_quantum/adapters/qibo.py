@@ -1,4 +1,5 @@
 """Qibo framework adapter."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -10,10 +11,21 @@ from pytest_quantum.adapters.protocol import FrameworkAdapter
 if TYPE_CHECKING:
     from numpy.typing import NDArray
 
-_CLIFFORD_QIBO = frozenset({
-    "H", "X", "Y", "Z", "S", "SDG", "CNOT", "CZ", "SWAP",
-    "SX", "SXDG",
-})
+_CLIFFORD_QIBO = frozenset(
+    {
+        "H",
+        "X",
+        "Y",
+        "Z",
+        "S",
+        "SDG",
+        "CNOT",
+        "CZ",
+        "SWAP",
+        "SX",
+        "SXDG",
+    }
+)
 
 
 class QiboAdapter(FrameworkAdapter):

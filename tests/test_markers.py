@@ -1,4 +1,5 @@
 """Tests for shots/significance marker wiring."""
+
 from __future__ import annotations
 
 import pytest
@@ -16,7 +17,9 @@ class TestShotsMarker:
         result = pytester.runpytest("-v")
         result.assert_outcomes(passed=1)
 
-    def test_significance_marker_overrides_default(self, pytester: pytest.Pytester) -> None:
+    def test_significance_marker_overrides_default(
+        self, pytester: pytest.Pytester
+    ) -> None:
         pytester.makepyfile("""
             import pytest
 

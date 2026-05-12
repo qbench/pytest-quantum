@@ -536,9 +536,11 @@ def _wait_for_sampler_job(
     return _extract_counts(result[0])
 
 
-from pytest_quantum._internal import (
-    _extract_sampler_counts as _extract_counts,
+from pytest_quantum._internal import (  # noqa: E402
     _backend_name,
+)
+from pytest_quantum._internal import (  # noqa: E402
+    _extract_sampler_counts as _extract_counts,
 )
 
 

@@ -1,17 +1,14 @@
 """Quantum-specific test reporting: JSON, HTML, and terminal summary."""
+
 from __future__ import annotations
 
 import dataclasses
+from dataclasses import dataclass, field
 import html
 import json
-import os
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import pytest
-
-if TYPE_CHECKING:
-    from pathlib import Path
 
 
 @dataclass
@@ -41,25 +38,35 @@ class QuantumReportPlugin:
         # from retry intermediate attempts (makereport fires for every
         # runtestprotocol call, even with log=False).
         self._seen_nodeids: set[str] = set()
-        self._quantum_fixtures = frozenset({
-            "aer_simulator", "aer_statevector_simulator", "aer_noise_simulator",
-            "qiskit_sampler", "qiskit_estimator",
-            "cirq_simulator", "cirq_sampler",
-            "braket_simulator", "braket_cloud_device",
-            "pennylane_device",
-            "pytket_circuit_factory",
-            "stim_sampler",
-            "qutip_solver",
-            "tequila_backend",
-            "graphix_backend",
-            "quantum_backend",
-            "quantum_benchmark",
-            "shot_budget",
-            "benchmark_suite",
-            "multi_backend_runner",
-            "ibm_backend", "ionq_backend", "quantinuum_backend",
-            "cuda_quantum_simulator", "qibo_backend",
-        })
+        self._quantum_fixtures = frozenset(
+            {
+                "aer_simulator",
+                "aer_statevector_simulator",
+                "aer_noise_simulator",
+                "qiskit_sampler",
+                "qiskit_estimator",
+                "cirq_simulator",
+                "cirq_sampler",
+                "braket_simulator",
+                "braket_cloud_device",
+                "pennylane_device",
+                "pytket_circuit_factory",
+                "stim_sampler",
+                "qutip_solver",
+                "tequila_backend",
+                "graphix_backend",
+                "quantum_backend",
+                "quantum_benchmark",
+                "shot_budget",
+                "benchmark_suite",
+                "multi_backend_runner",
+                "ibm_backend",
+                "ionq_backend",
+                "quantinuum_backend",
+                "cuda_quantum_simulator",
+                "qibo_backend",
+            }
+        )
         self._framework_fixture_map = {
             "aer_simulator": "qiskit",
             "aer_statevector_simulator": "qiskit",
@@ -86,9 +93,10 @@ class QuantumReportPlugin:
     def _is_quantum_test(self, item: pytest.Item) -> bool:
         """Check if a test item uses quantum fixtures or markers."""
         # Check fixtures
-        if hasattr(item, "fixturenames"):
-            if self._quantum_fixtures & set(item.fixturenames):
-                return True
+        if hasattr(item, "fixturenames") and self._quantum_fixtures & set(
+            item.fixturenames
+        ):
+            return True
         # Check markers
         for marker_name in ("quantum", "quantum_slow", "quantum_retry"):
             if item.get_closest_marker(marker_name):
@@ -109,7 +117,9 @@ class QuantumReportPlugin:
         return None
 
     @pytest.hookimpl(hookwrapper=True)
-    def pytest_runtest_makereport(self, item: pytest.Item, call: pytest.CallInfo) -> Any:  # type: ignore[type-arg]
+    def pytest_runtest_makereport(
+        self, item: pytest.Item, call: pytest.CallInfo
+    ) -> Any:  # type: ignore[type-arg]
         """Track quantum test results.
 
         When ``quantum_retry`` is active, ``runtestprotocol(log=False)`` is
@@ -182,12 +192,14 @@ class QuantumReportPlugin:
             self.data.retried += 1
 
         # Store test detail (include _shots for undo bookkeeping)
-        self.data.test_details.append({
-            "nodeid": nodeid,
-            "outcome": report.outcome,
-            "duration": report.duration,
-            "_shots": shots,
-        })
+        self.data.test_details.append(
+            {
+                "nodeid": nodeid,
+                "outcome": report.outcome,
+                "duration": report.duration,
+                "_shots": shots,
+            }
+        )
 
     def pytest_terminal_summary(
         self, terminalreporter: Any, exitstatus: int, config: pytest.Config
@@ -207,15 +219,11 @@ class QuantumReportPlugin:
                 f"Frameworks tested: {', '.join(sorted(self.data.frameworks_used))}"
             )
         if self.data.total_shots > 0:
-            terminalreporter.line(
-                f"Total shots consumed: {self.data.total_shots:,}"
-            )
+            terminalreporter.line(f"Total shots consumed: {self.data.total_shots:,}")
         if self.data.retried > 0:
             terminalreporter.line(f"Retried tests: {self.data.retried}")
 
-    def pytest_sessionfinish(
-        self, session: pytest.Session, exitstatus: int
-    ) -> None:
+    def pytest_sessionfinish(self, session: pytest.Session, exitstatus: int) -> None:
         """Write report file at end of session."""
         if self.report_format == "none":
             return
@@ -257,9 +265,9 @@ def _generate_html_report(data: QuantumSessionData, path: str) -> None:
         }.get(detail["outcome"], "")
         rows.append(
             f'<tr class="{outcome_class}">'
-            f'<td>{html.escape(detail["nodeid"])}</td>'
-            f'<td>{html.escape(detail["outcome"])}</td>'
-            f'<td>{detail["duration"]:.3f}s</td>'
+            f"<td>{html.escape(detail['nodeid'])}</td>"
+            f"<td>{html.escape(detail['outcome'])}</td>"
+            f"<td>{detail['duration']:.3f}s</td>"
             f"</tr>"
         )
 

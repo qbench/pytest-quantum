@@ -6,11 +6,13 @@ across multiple assertion modules. It is NOT part of the public API.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, Callable
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
 if TYPE_CHECKING:
+    from collections.abc import Callable
+
     from numpy.typing import NDArray
 
 
@@ -36,6 +38,7 @@ def _unitaries_equivalent(
     Example::
 
         import numpy as np
+
         I = np.eye(2, dtype=np.complex128)
         assert _unitaries_equivalent(I, I, atol=1e-8, allow_global_phase=True)
     """
@@ -73,6 +76,7 @@ def _kraus_to_choi(kraus_ops: list[NDArray[np.complex128]]) -> NDArray[np.comple
     Example::
 
         import numpy as np
+
         choi = _kraus_to_choi([np.eye(2, dtype=np.complex128)])
         assert choi.shape == (4, 4)
     """
@@ -149,6 +153,7 @@ def _backend_name(backend: object) -> str:
 
         class FakeBackend:
             name = "fake_backend"
+
 
         assert _backend_name(FakeBackend()) == "fake_backend"
     """

@@ -2,8 +2,8 @@
 
 All tests are skipped if cudaq is not installed.
 """
+
 import pytest
-import numpy as np
 
 cudaq = pytest.importorskip("cudaq")
 

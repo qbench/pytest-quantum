@@ -1,7 +1,9 @@
 """Quantum error correction assertions."""
+
 from __future__ import annotations
-from typing import TYPE_CHECKING
+
 import itertools
+from typing import TYPE_CHECKING
 
 import numpy as np
 
@@ -82,11 +84,12 @@ def assert_code_distance(
     for s in stabilizers:
         if len(s) != n:
             raise ValueError(
-                f"All stabilizers must have the same length. "
-                f"Got {len(s)} and {n}."
+                f"All stabilizers must have the same length. Got {len(s)} and {n}."
             )
 
-    stab_vecs = np.array([_pauli_str_to_symplectic(s) for s in stabilizers], dtype=np.int8)
+    stab_vecs = np.array(
+        [_pauli_str_to_symplectic(s) for s in stabilizers], dtype=np.int8
+    )
 
     # Find minimum weight operator that commutes with all stabilizers
     # but is not in the stabilizer group
@@ -109,17 +112,13 @@ def assert_code_distance(
     # Search through all possible Paulis for normalizer elements
     # that are not in the stabilizer group
     for bits in range(1, 2 ** (2 * n)):
-        candidate = np.array(
-            [(bits >> i) & 1 for i in range(2 * n)], dtype=np.int8
-        )
+        candidate = np.array([(bits >> i) & 1 for i in range(2 * n)], dtype=np.int8)
         weight = _symplectic_weight(candidate)
         if weight >= min_distance:
             continue
 
         # Check if candidate commutes with all stabilizers (in normalizer)
-        in_normalizer = all(
-            _symplectic_product(candidate, sv) == 0 for sv in stab_vecs
-        )
+        in_normalizer = all(_symplectic_product(candidate, sv) == 0 for sv in stab_vecs)
         if not in_normalizer:
             continue
 
@@ -166,7 +165,9 @@ def assert_syndrome_decoding_correct(
         assert_syndrome_decoding_correct(stabilizers, error, correction)
     """
     n = len(stabilizers[0])
-    stab_vecs = np.array([_pauli_str_to_symplectic(s) for s in stabilizers], dtype=np.int8)
+    stab_vecs = np.array(
+        [_pauli_str_to_symplectic(s) for s in stabilizers], dtype=np.int8
+    )
 
     # Convert string inputs to symplectic if needed
     if isinstance(error, str):
@@ -194,9 +195,7 @@ def assert_syndrome_decoding_correct(
 
     if tuple(residual) not in stab_group:
         # Check if it's a non-trivial logical operator
-        in_normalizer = all(
-            _symplectic_product(residual, sv) == 0 for sv in stab_vecs
-        )
+        in_normalizer = all(_symplectic_product(residual, sv) == 0 for sv in stab_vecs)
         if in_normalizer:
             raise AssertionError(
                 "Decoder correction is incorrect: residual error is a "

@@ -80,7 +80,9 @@ def assert_transpilation_equivalent(
 
     from pytest_quantum._internal import _unitaries_equivalent
 
-    if _unitaries_equivalent(U_a, U_b, atol=atol, allow_global_phase=allow_global_phase):
+    if _unitaries_equivalent(
+        U_a, U_b, atol=atol, allow_global_phase=allow_global_phase
+    ):
         return
 
     max_diff = float(np.max(np.abs(U_a - U_b)))

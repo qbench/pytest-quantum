@@ -1,8 +1,9 @@
-import pytest
 import numpy as np
+import pytest
+
 from pytest_quantum.assertions.tomography import (
-    assert_state_tomography_close,
     assert_process_tomography_close,
+    assert_state_tomography_close,
 )
 
 
@@ -40,7 +41,7 @@ class TestAssertProcessTomographyClose:
         assert_process_tomography_close(chi, np.eye(4) / 4)
 
     def test_non_hermitian_fails(self):
-        chi = np.array([[1, 1j], [-1j, 1]], dtype=np.complex128)
+        np.array([[1, 1j], [-1j, 1]], dtype=np.complex128)
         # This is actually Hermitian, so make it non-Hermitian
         chi_bad = np.array([[1, 2j], [1j, 1]], dtype=np.complex128)
         with pytest.raises(AssertionError, match="not Hermitian"):

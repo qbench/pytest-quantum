@@ -6,8 +6,6 @@ and ``detect_framework`` work correctly with mock circuit objects.
 
 from __future__ import annotations
 
-import types
-
 import pytest
 
 from pytest_quantum.adapters import (
@@ -17,7 +15,6 @@ from pytest_quantum.adapters import (
     register_adapter,
 )
 from pytest_quantum.adapters.registry import detect_framework
-
 
 # ---------------------------------------------------------------------------
 # Helpers — mock circuit objects with controllable __module__
@@ -99,7 +96,7 @@ class TestDetectFramework:
     """Tests for :func:`detect_framework`."""
 
     @pytest.mark.parametrize(
-        "module_prefix,expected_name",
+        ("module_prefix", "expected_name"),
         [
             ("qiskit.test", "qiskit"),
             ("cirq.test", "cirq"),

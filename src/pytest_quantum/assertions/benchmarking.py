@@ -10,14 +10,10 @@ so failures are easy to diagnose in CI logs.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from scipy import optimize, stats
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 
 # ---------------------------------------------------------------------------
 # Public assertions
@@ -907,10 +903,9 @@ def assert_interleaved_rb(
 # ---------------------------------------------------------------------------
 
 
-from pytest_quantum._internal import (
+from pytest_quantum._internal import (  # noqa: E402
     _backend_name,
     _is_ibm_backend,
-    _extract_sampler_counts,
     _run_circuit,
 )
 

@@ -41,36 +41,43 @@ def _reverse_qubit_order(U: NDArray[np.complex128]) -> NDArray[np.complex128]:
 
 def _is_qiskit(circuit: object) -> bool:
     from pytest_quantum.adapters.qiskit import QiskitAdapter
+
     return QiskitAdapter.detect(circuit)
 
 
 def _is_cirq(circuit: object) -> bool:
     from pytest_quantum.adapters.cirq import CirqAdapter
+
     return CirqAdapter.detect(circuit)
 
 
 def _is_braket(circuit: object) -> bool:
     from pytest_quantum.adapters.braket import BraketAdapter
+
     return BraketAdapter.detect(circuit)
 
 
 def _is_pennylane(circuit: object) -> bool:
     from pytest_quantum.adapters.pennylane import PennyLaneAdapter
+
     return PennyLaneAdapter.detect(circuit)
 
 
 def _is_pytket(circuit: object) -> bool:
     from pytest_quantum.adapters.pytket import PytketAdapter
+
     return PytketAdapter.detect(circuit)
 
 
 def _is_qutip(circuit: object) -> bool:
     from pytest_quantum.adapters.qutip import QutipAdapter
+
     return QutipAdapter.detect(circuit)
 
 
 def _is_tequila(circuit: object) -> bool:
     from pytest_quantum.adapters.tequila import TequilaAdapter
+
     return TequilaAdapter.detect(circuit)
 
 
@@ -121,4 +128,4 @@ def to_unitary(circuit: object) -> NDArray[np.complex128]:
             "qutip.Qobj, tequila QCircuit, CUDA Quantum kernel, "
             "Qibo Circuit.\n"
             "For graphix patterns use assert_state_fidelity_above() instead."
-        )
+        ) from None

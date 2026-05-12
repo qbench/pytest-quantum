@@ -9,11 +9,10 @@ it can actually support.
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING, Any, cast
-
-import numpy as np
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
+    import numpy as np
     from numpy.typing import NDArray
 
 

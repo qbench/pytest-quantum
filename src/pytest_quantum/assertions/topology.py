@@ -1,11 +1,10 @@
 """Topology and connectivity assertions for quantum circuits."""
-from __future__ import annotations
-import itertools
-from typing import TYPE_CHECKING
-from pytest_quantum.adapters import get_adapter
 
-if TYPE_CHECKING:
-    pass
+from __future__ import annotations
+
+import itertools
+
+from pytest_quantum.adapters import get_adapter
 
 
 def _check_qubit_pairs(
@@ -24,7 +23,9 @@ def _check_qubit_pairs(
     for qi, qj in itertools.combinations(qubits, 2):
         pair = (qi, qj)
         if pair not in edges and (qj, qi) not in edges:
-            violations.append(f"{gate_name} on qubits {tuple(qubits)} — missing edge {pair}")
+            violations.append(
+                f"{gate_name} on qubits {tuple(qubits)} — missing edge {pair}"
+            )
 
 
 def assert_circuit_respects_topology(
@@ -52,7 +53,7 @@ def assert_circuit_respects_topology(
         assert_circuit_respects_topology(circuit, coupling)
     """
     adapter = get_adapter(circuit)
-    gates = adapter.count_gates(circuit)
+    adapter.count_gates(circuit)
     # Build undirected edge set
     edges = set()
     for i, j in coupling_map:
@@ -65,7 +66,9 @@ def assert_circuit_respects_topology(
     _check_topology_via_adapter(circuit, adapter, edges)
 
 
-def _check_topology_via_adapter(circuit: object, adapter: object, edges: set[tuple[int, int]]) -> None:
+def _check_topology_via_adapter(
+    circuit: object, adapter: object, edges: set[tuple[int, int]]
+) -> None:
     """Check topology using framework-specific circuit inspection."""
     mod = type(circuit).__module__
 
@@ -92,13 +95,12 @@ def _check_qiskit_topology(circuit: object, edges: set[tuple[int, int]]) -> None
             _check_qubit_pairs(instruction.operation.name, qubits, edges, violations)
     if violations:
         raise AssertionError(
-            f"Circuit violates coupling map. Violations:\n"
+            "Circuit violates coupling map. Violations:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
 
 def _check_cirq_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
-    import cirq
     violations: list[str] = []
     qubit_list = sorted(circuit.all_qubits())  # type: ignore[attr-defined]
     qubit_to_idx = {q: i for i, q in enumerate(qubit_list)}
@@ -109,7 +111,7 @@ def _check_cirq_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
             _check_qubit_pairs(gate_name, indices, edges, violations)
     if violations:
         raise AssertionError(
-            f"Circuit violates coupling map. Violations:\n"
+            "Circuit violates coupling map. Violations:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
@@ -119,11 +121,15 @@ def _check_braket_topology(circuit: object, edges: set[tuple[int, int]]) -> None
     for instruction in circuit.instructions:  # type: ignore[attr-defined]
         if len(instruction.target) >= 2:
             qubits = [int(q) for q in instruction.target]
-            gate_name = instruction.operator.name if hasattr(instruction.operator, "name") else type(instruction.operator).__name__
+            gate_name = (
+                instruction.operator.name
+                if hasattr(instruction.operator, "name")
+                else type(instruction.operator).__name__
+            )
             _check_qubit_pairs(gate_name, qubits, edges, violations)
     if violations:
         raise AssertionError(
-            f"Circuit violates coupling map. Violations:\n"
+            "Circuit violates coupling map. Violations:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
@@ -136,7 +142,7 @@ def _check_qibo_topology(circuit: object, edges: set[tuple[int, int]]) -> None:
             _check_qubit_pairs(gate.__class__.__name__, qubits, edges, violations)
     if violations:
         raise AssertionError(
-            f"Circuit violates coupling map. Violations:\n"
+            "Circuit violates coupling map. Violations:\n"
             + "\n".join(f"  - {v}" for v in violations)
         )
 
@@ -171,8 +177,7 @@ def assert_routing_overhead_below(
         if routed_count == 0:
             return
         raise AssertionError(
-            "Original circuit has 0 gates but routed circuit has "
-            f"{routed_count} gates."
+            f"Original circuit has 0 gates but routed circuit has {routed_count} gates."
         )
     overhead = (routed_count - orig_count) / orig_count
     if overhead >= max_overhead:

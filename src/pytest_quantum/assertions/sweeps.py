@@ -83,7 +83,9 @@ def assert_circuit_sweep(
 
         from pytest_quantum._internal import _unitaries_equivalent
 
-        if _unitaries_equivalent(actual, expected, atol=atol, allow_global_phase=allow_global_phase):
+        if _unitaries_equivalent(
+            actual, expected, atol=atol, allow_global_phase=allow_global_phase
+        ):
             continue
 
         max_diff = float(np.max(np.abs(actual - expected)))

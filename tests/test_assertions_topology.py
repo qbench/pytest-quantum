@@ -1,5 +1,6 @@
 import pytest
 from qiskit import QuantumCircuit
+
 from pytest_quantum.assertions.topology import (
     assert_circuit_respects_topology,
     assert_routing_overhead_below,

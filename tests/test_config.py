@@ -1,8 +1,8 @@
 """Tests for pytest-quantum configuration support."""
+
 from __future__ import annotations
 
-import pytest
-from pytest_quantum.config import QuantumConfig, load_config
+from pytest_quantum.config import QuantumConfig
 
 
 class TestQuantumConfig:

@@ -9,9 +9,8 @@ from __future__ import annotations
 
 import importlib.util
 import os
-from typing import TYPE_CHECKING, Any
+from typing import TYPE_CHECKING
 
-import numpy as np
 import pytest
 
 if TYPE_CHECKING:
@@ -38,7 +37,6 @@ pytest_plugins = [
 
 def _require(package: str, extra: str) -> None:
     """Raise a helpful ImportError if *package* is not installed."""
-    import importlib.util
 
     if importlib.util.find_spec(package) is None:
         pytest.skip(
@@ -115,13 +113,33 @@ def pytest_addoption(parser: Parser) -> None:
     )
 
     # ini options
-    parser.addini("quantum_shots", "Default shot count for quantum tests", type="string", default="")
-    parser.addini("quantum_significance", "Default p-value threshold", type="string", default="")
-    parser.addini("quantum_slow", "Run quantum_slow tests by default", type="bool", default=False)
-    parser.addini("quantum_real", "Run quantum_real tests by default", type="bool", default=False)
-    parser.addini("quantum_update_snapshots", "Update snapshots by default", type="bool", default=False)
-    parser.addini("quantum_report", "Quantum report format (json, html, none)", default="none")
-    parser.addini("quantum_report_path", "Base path for quantum report", default="quantum-report")
+    parser.addini(
+        "quantum_shots",
+        "Default shot count for quantum tests",
+        type="string",
+        default="",
+    )
+    parser.addini(
+        "quantum_significance", "Default p-value threshold", type="string", default=""
+    )
+    parser.addini(
+        "quantum_slow", "Run quantum_slow tests by default", type="bool", default=False
+    )
+    parser.addini(
+        "quantum_real", "Run quantum_real tests by default", type="bool", default=False
+    )
+    parser.addini(
+        "quantum_update_snapshots",
+        "Update snapshots by default",
+        type="bool",
+        default=False,
+    )
+    parser.addini(
+        "quantum_report", "Quantum report format (json, html, none)", default="none"
+    )
+    parser.addini(
+        "quantum_report_path", "Base path for quantum report", default="quantum-report"
+    )
 
 
 def pytest_configure(config: Config) -> None:
@@ -185,6 +203,7 @@ def pytest_configure(config: Config) -> None:
     report_path = qcfg.report_path
     if report_format != "none":
         from pytest_quantum.reporting import QuantumReportPlugin
+
         config.pluginmanager.register(
             QuantumReportPlugin(report_format, report_path),
             name="quantum-report",
@@ -200,7 +219,11 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
     """Skip quantum_slow and quantum_real tests unless appropriate flags are supplied."""
     qcfg = getattr(config, "_quantum_config", None)
 
-    run_slow = qcfg.slow if qcfg is not None else config.getoption("--quantum-slow", default=False)
+    run_slow = (
+        qcfg.slow
+        if qcfg is not None
+        else config.getoption("--quantum-slow", default=False)
+    )
     if not run_slow:
         skip_slow = pytest.mark.skip(
             reason="Skipping quantum_slow test — pass --quantum-slow to run."
@@ -209,7 +232,11 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
             if "quantum_slow" in item.keywords:
                 item.add_marker(skip_slow)
 
-    run_real = qcfg.real if qcfg is not None else config.getoption("--quantum-real", default=False)
+    run_real = (
+        qcfg.real
+        if qcfg is not None
+        else config.getoption("--quantum-real", default=False)
+    )
     if not run_real:
         skip_real = pytest.mark.skip(
             reason="real hardware tests skipped (pass --quantum-real)"
@@ -221,14 +248,31 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
     # --quantum-only filtering
     if config.getoption("--quantum-only", default=False):
         quantum_fixtures = {
-            "aer_simulator", "aer_statevector_simulator", "aer_noise_simulator",
-            "cirq_simulator", "cirq_sampler", "braket_simulator", "graphix_backend",
-            "pennylane_device", "pytket_circuit_factory", "stim_sampler",
-            "qiskit_sampler", "qiskit_estimator", "quantum_shots",
-            "quantum_significance", "quantum_benchmark", "shot_budget",
-            "quantum_backend_name", "quantum_backend", "multi_backend_runner",
-            "benchmark_suite", "ibm_backend", "ionq_backend",
-            "quantinuum_backend", "braket_cloud_device", "qutip_solver",
+            "aer_simulator",
+            "aer_statevector_simulator",
+            "aer_noise_simulator",
+            "cirq_simulator",
+            "cirq_sampler",
+            "braket_simulator",
+            "graphix_backend",
+            "pennylane_device",
+            "pytket_circuit_factory",
+            "stim_sampler",
+            "qiskit_sampler",
+            "qiskit_estimator",
+            "quantum_shots",
+            "quantum_significance",
+            "quantum_benchmark",
+            "shot_budget",
+            "quantum_backend_name",
+            "quantum_backend",
+            "multi_backend_runner",
+            "benchmark_suite",
+            "ibm_backend",
+            "ionq_backend",
+            "quantinuum_backend",
+            "braket_cloud_device",
+            "qutip_solver",
             "tequila_backend",
             "cuda_quantum_simulator",
             "qibo_backend",
@@ -240,9 +284,7 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
                 item.get_closest_marker("quantum")
                 or item.get_closest_marker("quantum_slow")
                 or item.get_closest_marker("quantum_real")
-            ):
-                selected.append(item)
-            elif quantum_fixtures & set(item.fixturenames):
+            ) or quantum_fixtures & set(item.fixturenames):
                 selected.append(item)
             else:
                 deselected.append(item)
@@ -369,7 +411,7 @@ def pytest_assertrepr_compare(
 # ---------------------------------------------------------------------------
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def quantum_shots(request: pytest.FixtureRequest) -> int | None:
     """Returns shot count: per-test marker > CLI > ini > None."""
     # Per-test marker (highest priority)
@@ -384,7 +426,7 @@ def quantum_shots(request: pytest.FixtureRequest) -> int | None:
     return request.config.getoption("quantum_shots", default=None)  # type: ignore[no-any-return]
 
 
-@pytest.fixture(scope="function")
+@pytest.fixture
 def quantum_significance(request: pytest.FixtureRequest) -> float | None:
     """Returns significance: per-test marker > CLI > ini > None."""
     marker_val = getattr(request.node, "_quantum_significance", None)

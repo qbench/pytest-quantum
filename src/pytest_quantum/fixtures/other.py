@@ -1,4 +1,5 @@
 """Other framework fixtures for pytest-quantum."""
+
 from __future__ import annotations
 
 import importlib.util
@@ -266,6 +267,7 @@ def qibo_backend() -> object:
 
         def test_qibo(qibo_backend):
             from qibo import Circuit, gates
+
             c = Circuit(2)
             c.add(gates.H(0))
             c.add(gates.CNOT(0, 1))

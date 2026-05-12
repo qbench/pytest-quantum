@@ -1,4 +1,5 @@
 """Real quantum hardware fixtures for pytest-quantum."""
+
 from __future__ import annotations
 
 import os

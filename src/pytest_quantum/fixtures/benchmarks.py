@@ -1,4 +1,5 @@
 """Benchmark and shot-budget fixtures for pytest-quantum."""
+
 from __future__ import annotations
 
 import importlib.util

@@ -7,7 +7,6 @@ and ``_backend_name`` without requiring any quantum SDK to be installed.
 from __future__ import annotations
 
 import numpy as np
-import pytest
 
 from pytest_quantum._internal import (
     _backend_name,
@@ -15,7 +14,6 @@ from pytest_quantum._internal import (
     _kraus_to_choi,
     _unitaries_equivalent,
 )
-
 
 # ---------------------------------------------------------------------------
 # _unitaries_equivalent
@@ -71,14 +69,14 @@ class TestKrausToChoi:
     """Tests for :func:`_kraus_to_choi`."""
 
     def test_identity_channel(self) -> None:
-        """Identity Kraus ops ``[I]`` give the maximally entangled state projector.
+        """Identity Kraus ops ``[eye]`` give the maximally entangled state projector.
 
         For a single-qubit identity channel:
             |Φ⟩ = |00⟩ + |11⟩ (un-normalised)
             Choi = |Φ⟩⟨Φ| = [[1,0,0,1],[0,0,0,0],[0,0,0,0],[1,0,0,1]]
         """
-        I = np.eye(2, dtype=np.complex128)
-        choi = _kraus_to_choi([I])
+        eye = np.eye(2, dtype=np.complex128)
+        choi = _kraus_to_choi([eye])
 
         expected = np.zeros((4, 4), dtype=np.complex128)
         expected[0, 0] = 1.0
@@ -97,12 +95,12 @@ class TestKrausToChoi:
     def test_depolarising_channel(self) -> None:
         """Depolarising channel Kraus ops produce a valid Choi matrix."""
         # Single-qubit depolarising channel with p=1 (fully depolarising)
-        I = np.eye(2, dtype=np.complex128) / 2
+        eye = np.eye(2, dtype=np.complex128) / 2
         X = np.array([[0, 1], [1, 0]], dtype=np.complex128) / 2
         Y = np.array([[0, -1j], [1j, 0]], dtype=np.complex128) / 2
         Z = np.array([[1, 0], [0, -1]], dtype=np.complex128) / 2
 
-        choi = _kraus_to_choi([I, X, Y, Z])
+        choi = _kraus_to_choi([eye, X, Y, Z])
         # Choi matrix should be Hermitian
         np.testing.assert_allclose(choi, choi.conj().T, atol=1e-12)
         # Trace should be d = 2 (for trace-preserving channel)

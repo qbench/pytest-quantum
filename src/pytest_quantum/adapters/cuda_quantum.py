@@ -1,4 +1,5 @@
 """CUDA Quantum framework adapter."""
+
 from __future__ import annotations
 
 from typing import TYPE_CHECKING
@@ -60,23 +61,18 @@ class CudaQuantumAdapter(FrameworkAdapter):
         if n_qubits is not None:
             return int(n_qubits)
         import cudaq
+
         state = cudaq.get_state(circuit)
         return int(np.log2(len(state)))
 
     def count_gates(self, circuit: object) -> dict[str, int]:
-        raise NotImplementedError(
-            "CudaQuantumAdapter does not support count_gates."
-        )
+        raise NotImplementedError("CudaQuantumAdapter does not support count_gates.")
 
     def gate_names(self, circuit: object) -> set[str]:
-        raise NotImplementedError(
-            "CudaQuantumAdapter does not support gate_names."
-        )
+        raise NotImplementedError("CudaQuantumAdapter does not support gate_names.")
 
     def is_clifford(self, circuit: object) -> bool:
-        raise NotImplementedError(
-            "CudaQuantumAdapter does not support is_clifford."
-        )
+        raise NotImplementedError("CudaQuantumAdapter does not support is_clifford.")
 
     def has_mid_circuit_measurement(self, circuit: object) -> bool:
         raise NotImplementedError(
@@ -84,6 +80,4 @@ class CudaQuantumAdapter(FrameworkAdapter):
         )
 
     def get_diagram(self, circuit: object) -> str:
-        raise NotImplementedError(
-            "CudaQuantumAdapter does not support get_diagram."
-        )
+        raise NotImplementedError("CudaQuantumAdapter does not support get_diagram.")

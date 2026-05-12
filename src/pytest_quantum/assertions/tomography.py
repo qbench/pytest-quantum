@@ -1,5 +1,7 @@
 """Quantum state and process tomography assertions."""
+
 from __future__ import annotations
+
 from typing import TYPE_CHECKING
 
 import numpy as np
@@ -47,7 +49,7 @@ def assert_state_tomography_close(
         expected = np.outer(expected, expected.conj())
 
     n_qubits = int(np.log2(expected.shape[0]))
-    dim = 2 ** n_qubits
+    dim = 2**n_qubits
 
     # Reconstruct density matrix via linear inversion
     rho = np.eye(dim, dtype=np.complex128) / dim

@@ -226,7 +226,7 @@ def random_qiskit_circuit(
         raise ImportError(
             "Qiskit is required for random_qiskit_circuit. "
             "Install it with: pip install pytest-quantum[qiskit]"
-        )
+        ) from None
 
     if gate_set is None:
         gate_set = frozenset({"h", "cx", "rz", "x", "y", "z", "s", "t", "swap"})
@@ -235,7 +235,7 @@ def random_qiskit_circuit(
     qc = QuantumCircuit(n_qubits)
     gate_list = sorted(gate_set)
     single_gates = [g for g in gate_list if g not in ("cx", "swap", "cz")]
-    two_gates = [g for g in gate_list if g in ("cx", "swap", "cz")]
+    [g for g in gate_list if g in ("cx", "swap", "cz")]
 
     for _ in range(depth):
         gate = rng.choice(gate_list)
@@ -306,7 +306,7 @@ def random_cirq_circuit(
         raise ImportError(
             "Cirq is required for random_cirq_circuit. "
             "Install it with: pip install pytest-quantum[cirq]"
-        )
+        ) from None
 
     if gate_set is None:
         gate_set = frozenset({"H", "CNOT", "Rz", "X", "Y", "Z", "S", "T", "SWAP"})
@@ -314,8 +314,12 @@ def random_cirq_circuit(
     rng = np.random.default_rng(seed)
     qubits = cirq.LineQubit.range(n_qubits)
     gate_map = {
-        "H": cirq.H, "X": cirq.X, "Y": cirq.Y, "Z": cirq.Z,
-        "S": cirq.S, "T": cirq.T,
+        "H": cirq.H,
+        "X": cirq.X,
+        "Y": cirq.Y,
+        "Z": cirq.Z,
+        "S": cirq.S,
+        "T": cirq.T,
     }
     two_qubit_gates = {"CNOT", "SWAP", "CZ"}
     gate_list = sorted(gate_set)
@@ -375,13 +379,19 @@ def random_braket_circuit(
         raise ImportError(
             "Amazon Braket SDK is required for random_braket_circuit. "
             "Install it with: pip install pytest-quantum[braket]"
-        )
+        ) from None
 
     rng = np.random.default_rng(seed)
     circuit = Circuit()
     gate_names = ["h", "x", "y", "z", "s", "t", "cnot", "swap", "rz"]
-    single_gates = {"h": gates.H, "x": gates.X, "y": gates.Y,
-                    "z": gates.Z, "s": gates.S, "t": gates.T}
+    single_gates = {
+        "h": gates.H,
+        "x": gates.X,
+        "y": gates.Y,
+        "z": gates.Z,
+        "s": gates.S,
+        "t": gates.T,
+    }
     two_gates = {"cnot", "swap"}
 
     for _ in range(depth):
@@ -435,15 +445,21 @@ def random_pennylane_circuit(
         raise ImportError(
             "PennyLane is required for random_pennylane_circuit. "
             "Install it with: pip install pytest-quantum[pennylane]"
-        )
+        ) from None
 
     rng = np.random.default_rng(seed)
     dev = qml.device("default.qubit", wires=n_qubits)
 
     # Pre-generate the random gate sequence
     gate_names = ["H", "X", "Y", "Z", "S", "T", "CNOT", "SWAP", "RZ"]
-    single_gates = {"H": qml.Hadamard, "X": qml.PauliX, "Y": qml.PauliY,
-                    "Z": qml.PauliZ, "S": qml.S, "T": qml.T}
+    single_gates = {
+        "H": qml.Hadamard,
+        "X": qml.PauliX,
+        "Y": qml.PauliY,
+        "Z": qml.PauliZ,
+        "S": qml.S,
+        "T": qml.T,
+    }
     two_gates = {"CNOT", "SWAP"}
 
     gate_sequence = []
@@ -461,7 +477,7 @@ def random_pennylane_circuit(
             gate_sequence.append((gate_name, [qubit], None))
 
     @qml.qnode(dev)
-    def circuit():
+    def circuit() -> object:
         for gate_name, qubits, param in gate_sequence:
             if gate_name == "CNOT":
                 qml.CNOT(wires=qubits)

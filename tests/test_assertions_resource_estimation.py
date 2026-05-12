@@ -1,10 +1,10 @@
 import pytest
-import numpy as np
 from qiskit import QuantumCircuit
+
 from pytest_quantum.assertions.resource_estimation import (
-    assert_t_count_below,
     assert_ancilla_count_below,
     assert_clifford_t_depth_below,
+    assert_t_count_below,
 )
 
 

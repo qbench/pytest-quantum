@@ -29,7 +29,7 @@ _Z = np.array([[1, 0], [0, -1]], dtype=np.complex128)
 # ---------------------------------------------------------------------------
 
 
-from pytest_quantum._internal import _kraus_to_choi
+from pytest_quantum._internal import _kraus_to_choi  # noqa: E402
 
 
 def _average_channel_fidelity(kraus_ops: list[NDArray[np.complex128]]) -> float:

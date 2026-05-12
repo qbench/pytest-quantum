@@ -2,11 +2,12 @@
 
 All tests are skipped if qibo is not installed.
 """
-import pytest
+
 import numpy as np
+import pytest
 
 qibo = pytest.importorskip("qibo")
-from qibo import Circuit, gates  # noqa: E402
+from qibo import Circuit, gates
 
 
 class TestQiboAdapter:
