@@ -122,7 +122,7 @@ class PytketAdapter(FrameworkAdapter):
         try:
             from pytket.tableau import UnitaryTableau
 
-            UnitaryTableau(circuit)
+            UnitaryTableau(cast("Any", circuit))
             return True
         except ImportError as exc:
             raise ImportError("pytket is required: pip install pytket") from exc

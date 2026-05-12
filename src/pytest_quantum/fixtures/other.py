@@ -198,7 +198,7 @@ def qutip_solver() -> Any:
         psi0: Any,
         tlist: Any,
         c_ops: list[Any] | None = None,
-    ) -> NDArray:
+    ) -> NDArray[Any]:
         import qutip
 
         result = qutip.mesolve(H, psi0, tlist, c_ops or [], [])

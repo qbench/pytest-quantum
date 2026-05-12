@@ -2460,6 +2460,15 @@ wheels = [
 ]
 
 [[package]]
+name = "ply"
+version = "3.11"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/e5/69/882ee5c9d017149285cab114ebeab373308ef0f874fcdac9beb90e0ac4da/ply-3.11.tar.gz", hash = "sha256:00c7c1aaa88358b9c765b6d3000c6eec0ba42abca5351b095321aef446081da3", size = 159130, upload-time = "2018-02-15T19:01:31.097Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/a3/58/35da89ee790598a0700ea49b2a66594140f44dec458c07e8e3d4979137fc/ply-3.11-py2.py3-none-any.whl", hash = "sha256:096f9b8350b65ebd2fd1346b12452efe5b9607f7482813ffca50c22722a807ce", size = 49567, upload-time = "2018-02-15T19:01:27.172Z" },
+]
+
+[[package]]
 name = "psutil"
 version = "7.2.2"
 source = { registry = "https://pypi.org/simple" }
@@ -2709,6 +2718,7 @@ all = [
     { name = "mqt-qcec", version = "3.2.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version >= '3.14'" },
     { name = "mqt-qcec", version = "3.5.0", source = { registry = "https://pypi.org/simple" }, marker = "python_full_version < '3.14'" },
     { name = "pennylane" },
+    { name = "ply" },
     { name = "pytket" },
     { name = "qibo" },
     { name = "qiskit" },
@@ -2738,6 +2748,7 @@ ibm = [
 ]
 mitiq = [
     { name = "mitiq" },
+    { name = "ply" },
 ]
 pennylane = [
     { name = "pennylane" },
@@ -2808,6 +2819,7 @@ requires-dist = [
     { name = "mqt-qcec", marker = "extra == 'qcec'", specifier = ">=2.0" },
     { name = "numpy", specifier = ">=2.0" },
     { name = "pennylane", marker = "extra == 'pennylane'", specifier = ">=0.38" },
+    { name = "ply", marker = "extra == 'mitiq'" },
     { name = "pytest", specifier = ">=8.0" },
     { name = "pytest-quantum", extras = ["braket"], marker = "extra == 'all'" },
     { name = "pytest-quantum", extras = ["cirq"], marker = "extra == 'all'" },

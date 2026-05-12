@@ -462,7 +462,7 @@ def random_pennylane_circuit(
     }
     two_gates = {"CNOT", "SWAP"}
 
-    gate_sequence = []
+    gate_sequence: list[tuple[str, list[int], float | None]] = []
     for _ in range(depth):
         gate_name = rng.choice(gate_names)
         if gate_name in two_gates and n_qubits >= 2:
@@ -476,7 +476,7 @@ def random_pennylane_circuit(
             qubit = int(rng.integers(n_qubits))
             gate_sequence.append((gate_name, [qubit], None))
 
-    @qml.qnode(dev)
+    @qml.qnode(dev)  # type: ignore[untyped-decorator]
     def circuit() -> object:
         for gate_name, qubits, param in gate_sequence:
             if gate_name == "CNOT":

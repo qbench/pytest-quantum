@@ -284,7 +284,7 @@ def pytest_collection_modifyitems(config: Config, items: list[Item]) -> None:
                 item.get_closest_marker("quantum")
                 or item.get_closest_marker("quantum_slow")
                 or item.get_closest_marker("quantum_real")
-            ) or quantum_fixtures & set(item.fixturenames):
+            ) or quantum_fixtures & set(getattr(item, "fixturenames", [])):
                 selected.append(item)
             else:
                 deselected.append(item)
@@ -417,13 +417,14 @@ def quantum_shots(request: pytest.FixtureRequest) -> int | None:
     # Per-test marker (highest priority)
     marker_val = getattr(request.node, "_quantum_shots", None)
     if marker_val is not None:
-        return marker_val
+        return int(marker_val)
     # CLI / ini config
     qc = getattr(request.config, "_quantum_config", None)
     if qc is not None and qc.shots is not None:
-        return qc.shots
+        return int(qc.shots)
     # Legacy CLI fallback
-    return request.config.getoption("quantum_shots", default=None)  # type: ignore[no-any-return]
+    val = request.config.getoption("quantum_shots", default=None)
+    return int(val) if val is not None else None
 
 
 @pytest.fixture
@@ -431,8 +432,9 @@ def quantum_significance(request: pytest.FixtureRequest) -> float | None:
     """Returns significance: per-test marker > CLI > ini > None."""
     marker_val = getattr(request.node, "_quantum_significance", None)
     if marker_val is not None:
-        return marker_val
+        return float(marker_val)
     qc = getattr(request.config, "_quantum_config", None)
     if qc is not None and qc.significance is not None:
-        return qc.significance
-    return request.config.getoption("quantum_significance", default=None)  # type: ignore[no-any-return]
+        return float(qc.significance)
+    val = request.config.getoption("quantum_significance", default=None)
+    return float(val) if val is not None else None

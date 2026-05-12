@@ -113,13 +113,13 @@ class QuantumReportPlugin:
         # Resolved config (CLI > INI)
         qcfg = getattr(item.config, "_quantum_config", None)
         if qcfg is not None and qcfg.shots is not None:
-            return qcfg.shots
+            return int(qcfg.shots)
         return None
 
     @pytest.hookimpl(hookwrapper=True)
     def pytest_runtest_makereport(
-        self, item: pytest.Item, call: pytest.CallInfo
-    ) -> Any:  # type: ignore[type-arg]
+        self, item: pytest.Item, call: pytest.CallInfo[None]
+    ) -> Any:
         """Track quantum test results.
 
         When ``quantum_retry`` is active, ``runtestprotocol(log=False)`` is

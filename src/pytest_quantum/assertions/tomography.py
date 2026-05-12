@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -18,8 +18,8 @@ _PAULIS = {"I": _I, "X": _X, "Y": _Y, "Z": _Z}
 
 
 def assert_state_tomography_close(
-    measurements: dict[str, float | NDArray],
-    expected_state: NDArray,
+    measurements: dict[str, float | NDArray[np.complexfloating[Any, Any]]],
+    expected_state: NDArray[np.complexfloating[Any, Any]],
     *,
     atol: float = 0.05,
 ) -> None:
@@ -44,15 +44,17 @@ def assert_state_tomography_close(
         measurements = {"X": 0.0, "Y": 0.0, "Z": 1.0}
         assert_state_tomography_close(measurements, np.array([1, 0]))
     """
-    expected = np.asarray(expected_state, dtype=np.complex128)
+    expected: np.ndarray[Any, np.dtype[np.complex128]] = np.asarray(
+        expected_state, dtype=np.complex128
+    )
     if expected.ndim == 1:
-        expected = np.outer(expected, expected.conj())
+        expected = np.asarray(np.outer(expected, expected.conj()), dtype=np.complex128)
 
     n_qubits = int(np.log2(expected.shape[0]))
     dim = 2**n_qubits
 
     # Reconstruct density matrix via linear inversion
-    rho = np.eye(dim, dtype=np.complex128) / dim
+    rho: np.ndarray[Any, np.dtype[Any]] = np.eye(dim, dtype=np.complex128) / dim
     if n_qubits == 1:
         for label in ("X", "Y", "Z"):
             if label in measurements:
@@ -60,17 +62,17 @@ def assert_state_tomography_close(
                 rho = rho + 0.5 * exp_val * _PAULIS[label]
     else:
         # Multi-qubit: iterate over all Pauli tensor products in measurements
-        for label, exp_val in measurements.items():
+        for label, meas_val in measurements.items():
             if all(c in "IXYZ" for c in label) and len(label) == n_qubits:
-                pauli = _PAULIS[label[0]]
+                pauli: np.ndarray[Any, np.dtype[Any]] = _PAULIS[label[0]]
                 for c in label[1:]:
                     pauli = np.kron(pauli, _PAULIS[c])
-                rho = rho + (1.0 / dim) * float(np.real(exp_val)) * pauli
+                rho = rho + (1.0 / dim) * float(np.real(meas_val)) * pauli
 
     # Trace distance: T(rho, sigma) = 0.5 * ||rho - sigma||_1
     diff = rho - expected
     eigenvalues = np.linalg.eigvalsh(diff @ diff.conj().T)
-    trace_dist = 0.5 * np.sum(np.sqrt(np.maximum(eigenvalues, 0)))
+    trace_dist: float = float(0.5 * np.sum(np.sqrt(np.maximum(eigenvalues, 0))))
 
     if trace_dist > atol:
         raise AssertionError(
@@ -82,8 +84,8 @@ def assert_state_tomography_close(
 
 
 def assert_process_tomography_close(
-    chi_matrix: NDArray,
-    expected_chi: NDArray,
+    chi_matrix: NDArray[np.complexfloating[Any, Any]],
+    expected_chi: NDArray[np.complexfloating[Any, Any]],
     *,
     atol: float = 0.05,
 ) -> None:

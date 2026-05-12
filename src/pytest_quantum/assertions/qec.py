@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import itertools
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Any
 
 import numpy as np
 
@@ -104,7 +104,7 @@ def assert_code_distance(
     stab_group = set()
     for r in range(k + 1):
         for combo in itertools.combinations(range(k), r):
-            prod = np.zeros(2 * n, dtype=np.int8)
+            prod: np.ndarray[Any, np.dtype[np.int8]] = np.zeros(2 * n, dtype=np.int8)
             for idx in combo:
                 prod = _symplectic_multiply(prod, stab_vecs[idx])
             stab_group.add(tuple(prod))
@@ -112,7 +112,9 @@ def assert_code_distance(
     # Search through all possible Paulis for normalizer elements
     # that are not in the stabilizer group
     for bits in range(1, 2 ** (2 * n)):
-        candidate = np.array([(bits >> i) & 1 for i in range(2 * n)], dtype=np.int8)
+        candidate: np.ndarray[Any, np.dtype[np.int8]] = np.array(
+            [(bits >> i) & 1 for i in range(2 * n)], dtype=np.int8
+        )
         weight = _symplectic_weight(candidate)
         if weight >= min_distance:
             continue
@@ -138,8 +140,8 @@ def assert_code_distance(
 
 def assert_syndrome_decoding_correct(
     stabilizers: list[str],
-    error: NDArray,
-    decoder_correction: NDArray,
+    error: NDArray[np.int8],
+    decoder_correction: NDArray[np.int8],
 ) -> None:
     """Assert that a decoder's correction is equivalent to the error.
 
@@ -188,7 +190,7 @@ def assert_syndrome_decoding_correct(
     stab_group = set()
     for r in range(k + 1):
         for combo in itertools.combinations(range(k), r):
-            prod = np.zeros(2 * n, dtype=np.int8)
+            prod: np.ndarray[Any, np.dtype[np.int8]] = np.zeros(2 * n, dtype=np.int8)
             for idx in combo:
                 prod = _symplectic_multiply(prod, stab_vecs[idx])
             stab_group.add(tuple(prod))
