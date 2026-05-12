@@ -59,16 +59,12 @@ def assert_unitary_snapshot(
             f"Snapshot '{name}': shape changed {expected.shape} → {actual.shape}.\n"
             f"  Run with --quantum-update-snapshots to regenerate."
         )
-    if np.allclose(actual, expected, atol=atol):
+    from pytest_quantum._internal import _unitaries_equivalent
+
+    if _unitaries_equivalent(
+        actual, expected, atol=atol, allow_global_phase=allow_global_phase
+    ):
         return
-    if allow_global_phase:
-        flat_idx = int(np.argmax(np.abs(expected)))
-        e_val = expected.flat[flat_idx]
-        a_val = actual.flat[flat_idx]
-        if abs(e_val) > 1e-10 and abs(a_val) > 1e-10:
-            phase = a_val / e_val
-            if np.allclose(actual, phase * expected, atol=atol):
-                return
     max_diff = float(np.max(np.abs(actual - expected)))
     raise AssertionError(
         f"Snapshot '{name}': unitary has changed.\n"

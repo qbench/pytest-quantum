@@ -109,6 +109,24 @@ Public API — import anything you need directly from ``pytest_quantum``::
         random_unitary,
         random_kraus_channel,
         depolarizing_kraus,
+        # Quantum ML (v0.5.0)
+        assert_xeb_fidelity_above,
+        assert_expressibility_above,
+        assert_entanglement_capability_above,
+        assert_no_barren_plateau,
+        # Resource estimation (v1.1.0)
+        assert_t_count_below,
+        assert_ancilla_count_below,
+        assert_clifford_t_depth_below,
+        # Topology (v1.1.0)
+        assert_circuit_respects_topology,
+        assert_routing_overhead_below,
+        # Tomography (v1.1.0)
+        assert_state_tomography_close,
+        assert_process_tomography_close,
+        # QEC (v1.1.0)
+        assert_code_distance,
+        assert_syndrome_decoding_correct,
         # Stats
         min_shots,
         recommended_shots,
@@ -116,6 +134,27 @@ Public API — import anything you need directly from ``pytest_quantum``::
         tvd,
         tvd_from_counts,
         chi_square_test,
+        # Random generators (v0.3.0)
+        random_statevector,
+        random_density_matrix,
+        random_unitary,
+        random_kraus_channel,
+        depolarizing_kraus,
+        # Random circuit generators (v1.1.0)
+        random_qiskit_circuit,
+        random_cirq_circuit,
+        random_braket_circuit,
+        random_pennylane_circuit,
+        # Hypothesis strategies (requires hypothesis)
+        statevectors,
+        density_matrices,
+        unitary_matrices,
+        count_distributions,
+        kraus_channels,
+        qiskit_circuits,
+        cirq_circuits,
+        braket_circuits,
+        pennylane_circuits,
     )
 
 Fixtures (``aer_simulator``, ``cirq_simulator``, ``cirq_sampler``,
@@ -150,6 +189,10 @@ pytest.register_assert_rewrite("pytest_quantum.assertions.benchmarking")
 pytest.register_assert_rewrite("pytest_quantum.assertions.cross_platform")
 pytest.register_assert_rewrite("pytest_quantum.assertions.noise_models")
 pytest.register_assert_rewrite("pytest_quantum.assertions.quantum_ml")
+pytest.register_assert_rewrite("pytest_quantum.assertions.resource_estimation")
+pytest.register_assert_rewrite("pytest_quantum.assertions.topology")
+pytest.register_assert_rewrite("pytest_quantum.assertions.tomography")
+pytest.register_assert_rewrite("pytest_quantum.assertions.qec")
 
 from pytest_quantum.assertions.benchmarking import (
     assert_gate_fidelity_above,
@@ -233,11 +276,20 @@ from pytest_quantum.assertions.primitives import (
     assert_sampler_distribution,
 )
 from pytest_quantum.assertions.qasm import assert_qasm2_roundtrip, assert_qasm_roundtrip
+from pytest_quantum.assertions.qec import (
+    assert_code_distance,
+    assert_syndrome_decoding_correct,
+)
 from pytest_quantum.assertions.quantum_ml import (
     assert_entanglement_capability_above,
     assert_expressibility_above,
     assert_no_barren_plateau,
     assert_xeb_fidelity_above,
+)
+from pytest_quantum.assertions.resource_estimation import (
+    assert_ancilla_count_below,
+    assert_clifford_t_depth_below,
+    assert_t_count_below,
 )
 from pytest_quantum.assertions.snapshot import (
     assert_distribution_snapshot,
@@ -267,6 +319,14 @@ from pytest_quantum.assertions.sweeps import (
     assert_circuit_sweep_states,
     assert_parametrized_unitary_continuous,
 )
+from pytest_quantum.assertions.tomography import (
+    assert_process_tomography_close,
+    assert_state_tomography_close,
+)
+from pytest_quantum.assertions.topology import (
+    assert_circuit_respects_topology,
+    assert_routing_overhead_below,
+)
 from pytest_quantum.assertions.unitary import (
     assert_circuits_equivalent,
     assert_transpilation_preserves_semantics,
@@ -274,11 +334,33 @@ from pytest_quantum.assertions.unitary import (
 )
 from pytest_quantum.random import (
     depolarizing_kraus,
+    random_braket_circuit,
+    random_cirq_circuit,
     random_density_matrix,
     random_kraus_channel,
+    random_pennylane_circuit,
+    random_qiskit_circuit,
     random_statevector,
     random_unitary,
 )
+
+try:
+    from pytest_quantum.hypothesis_strategies import (
+        braket_circuits,
+        cirq_circuits,
+        count_distributions,
+        density_matrices,
+        kraus_channels,
+        pennylane_circuits,
+        qiskit_circuits,
+        statevectors,
+        unitary_matrices,
+    )
+
+    _HYPOTHESIS_AVAILABLE = True
+except ImportError:
+    _HYPOTHESIS_AVAILABLE = False
+
 from pytest_quantum.stats.shots import min_shots, recommended_shots
 from pytest_quantum.stats.tests import (
     chi_square_test,
@@ -287,10 +369,11 @@ from pytest_quantum.stats.tests import (
     tvd_from_counts,
 )
 
-__version__ = "1.0.0"
+__version__ = "2.0.0"
 
 __all__ = [
     "assert_amplitude_damping_channel",
+    "assert_ancilla_count_below",
     "assert_backend_calibration",
     "assert_backend_executes",
     "assert_bloch_sphere_close",
@@ -301,10 +384,13 @@ __all__ = [
     "assert_circuit_depth",
     "assert_circuit_fits_backend",
     "assert_circuit_is_clifford",
+    "assert_circuit_respects_topology",
     "assert_circuit_sweep",
     "assert_circuit_sweep_states",
     "assert_circuit_width",
     "assert_circuits_equivalent",
+    "assert_clifford_t_depth_below",
+    "assert_code_distance",
     "assert_commutes_with",
     "assert_cost_decreases",
     "assert_counts_close",
@@ -344,6 +430,7 @@ __all__ = [
     "assert_pec_reduces_error",
     "assert_positive_semidefinite",
     "assert_process_fidelity_above",
+    "assert_process_tomography_close",
     "assert_purity_above",
     "assert_qasm2_roundtrip",
     "assert_qasm_roundtrip",
@@ -352,16 +439,20 @@ __all__ = [
     "assert_quantum_volume",
     "assert_randomized_benchmarking",
     "assert_real_counts_close",
+    "assert_routing_overhead_below",
     "assert_sampler_distribution",
     "assert_schmidt_rank_at_most",
     "assert_stabilizer_state",
     "assert_state_fidelity_above",
+    "assert_state_tomography_close",
     "assert_states_close",
     "assert_stim_detector_error_rate_below",
     "assert_stim_logical_error_rate_below",
+    "assert_syndrome_decoding_correct",
     "assert_t1_above",
     "assert_t2_above",
     "assert_t2star_above",
+    "assert_t_count_below",
     "assert_trace_distance_below",
     "assert_transpilation_depth_below",
     "assert_transpilation_equivalent",
@@ -372,15 +463,28 @@ __all__ = [
     "assert_xeb_fidelity_above",
     "assert_zne_expectation_close",
     "assert_zne_reduces_error",
+    "braket_circuits",
     "chi_square_test",
+    "cirq_circuits",
+    "count_distributions",
+    "density_matrices",
     "depolarizing_kraus",
     "fidelity",
+    "kraus_channels",
     "min_shots",
+    "pennylane_circuits",
+    "qiskit_circuits",
+    "random_braket_circuit",
+    "random_cirq_circuit",
     "random_density_matrix",
     "random_kraus_channel",
+    "random_pennylane_circuit",
+    "random_qiskit_circuit",
     "random_statevector",
     "random_unitary",
     "recommended_shots",
+    "statevectors",
     "tvd",
     "tvd_from_counts",
+    "unitary_matrices",
 ]

@@ -78,17 +78,12 @@ def assert_transpilation_equivalent(
     label_a = f"basis={basis_gates_a}"
     label_b = "original" if basis_gates_b is None else f"basis={basis_gates_b}"
 
-    if np.allclose(U_a, U_b, atol=atol):
-        return
+    from pytest_quantum._internal import _unitaries_equivalent
 
-    if allow_global_phase:
-        flat_idx = int(np.argmax(np.abs(U_b)))
-        e_val = U_b.flat[flat_idx]
-        a_val = U_a.flat[flat_idx]
-        if abs(e_val) > 1e-10 and abs(a_val) > 1e-10:
-            phase = a_val / e_val
-            if np.allclose(U_a, phase * U_b, atol=atol):
-                return
+    if _unitaries_equivalent(
+        U_a, U_b, atol=atol, allow_global_phase=allow_global_phase
+    ):
+        return
 
     max_diff = float(np.max(np.abs(U_a - U_b)))
     raise AssertionError(

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "pytest-quantum"
-version = "1.0.0"
+version = "2.0.0"
 description = "A cross-framework pytest plugin for quantum program testing"
 readme = "README.md"
 license = "MIT"
@@ -51,7 +51,9 @@ pytket   = ["pytket>=1.30"]
 stim     = ["stim>=1.13"]
 qutip    = ["qutip>=4.7"]
 tequila  = ["tequila-basic>=1.9"]
-mitiq    = ["mitiq>=0.15"]
+mitiq    = ["mitiq>=0.15", "ply"]
+cuda_quantum = ["cuda-quantum"]
+qibo = ["qibo"]
 cvxpy    = ["cvxpy>=1.4"]
 all = [
     "pytest-quantum[qiskit]",
@@ -66,6 +68,8 @@ all = [
     "pytest-quantum[qutip]",
     "pytest-quantum[mitiq]",
     "pytest-quantum[cvxpy]",
+    "pytest-quantum[cuda_quantum]",
+    "pytest-quantum[qibo]",
 ]
 
 [project.urls]
@@ -155,6 +159,8 @@ ignore = [
 "examples/**/*.py"                 = ["ANN", "S101", "PT011", "TC002", "RUF059", "TC003", "E402"]
 "src/pytest_quantum/__init__.py"   = ["F401", "E402"]
 "src/pytest_quantum/plugin.py"     = ["ANN201"]  # fixture return types use Any
+"src/pytest_quantum/fixtures/*.py" = ["ANN201"]  # fixture return types use Any
+"src/pytest_quantum/retry.py"      = ["ANN201"]
 
 [tool.ruff.lint.isort]
 known-first-party        = ["pytest_quantum"]

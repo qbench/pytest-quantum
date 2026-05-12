@@ -11,9 +11,7 @@ from typing import TYPE_CHECKING
 import numpy as np
 
 from pytest_quantum.converters.to_unitary import (
-    _is_cirq,
-    _is_pytket,
-    _is_qiskit,
+    _reverse_qubit_order,
     to_unitary,
 )
 
@@ -70,19 +68,12 @@ def assert_unitary(
             f"  Hint: check qubit count and ordering."
         )
 
-    if np.allclose(actual, expected_arr, atol=atol):
-        return
+    from pytest_quantum._internal import _unitaries_equivalent
 
-    if allow_global_phase:
-        # Find the element with largest magnitude in expected, use it to
-        # extract the global phase, then compare.
-        flat_idx = int(np.argmax(np.abs(expected_arr)))
-        e_val = expected_arr.flat[flat_idx]
-        a_val = actual.flat[flat_idx]
-        if abs(e_val) > 1e-10 and abs(a_val) > 1e-10:
-            phase = a_val / e_val
-            if np.allclose(actual, phase * expected_arr, atol=atol):
-                return  # equal up to global phase
+    if _unitaries_equivalent(
+        actual, expected_arr, atol=atol, allow_global_phase=allow_global_phase
+    ):
+        return
 
     max_diff = float(np.max(np.abs(actual - expected_arr)))
     raise AssertionError(
@@ -155,14 +146,22 @@ def assert_circuits_equivalent(
 
     # Normalize qubit ordering for cross-framework comparison.
     # Qiskit = little-endian, Cirq = big-endian, Pytket = big-endian.
-    big_endian_a = _is_cirq(circuit_a) or _is_pytket(circuit_a)
-    big_endian_b = _is_cirq(circuit_b) or _is_pytket(circuit_b)
+    from pytest_quantum.adapters import get_adapter
 
-    from pytest_quantum.converters.to_unitary import _reverse_qubit_order
+    try:
+        adapter_a = get_adapter(circuit_a)
+        big_endian_a = adapter_a.big_endian
+    except TypeError:
+        big_endian_a = False
+    try:
+        adapter_b = get_adapter(circuit_b)
+        big_endian_b = adapter_b.big_endian
+    except TypeError:
+        big_endian_b = False
 
-    if _is_qiskit(circuit_a) and big_endian_b:
+    if not big_endian_a and big_endian_b:
         u_a = _reverse_qubit_order(u_a)
-    elif big_endian_a and _is_qiskit(circuit_b):
+    elif big_endian_a and not big_endian_b:
         u_b = _reverse_qubit_order(u_b)
 
     if u_a.shape != u_b.shape:
@@ -171,17 +170,10 @@ def assert_circuits_equivalent(
             f"  circuit_a: {u_a.shape}  circuit_b: {u_b.shape}"
         )
 
-    if np.allclose(u_a, u_b, atol=atol):
-        return
+    from pytest_quantum._internal import _unitaries_equivalent
 
-    # Check up to global phase
-    flat_idx = int(np.argmax(np.abs(u_a)))
-    a_val = u_a.flat[flat_idx]
-    b_val = u_b.flat[flat_idx]
-    if abs(a_val) > 1e-10 and abs(b_val) > 1e-10:
-        phase = a_val / b_val
-        if np.allclose(u_a, phase * u_b, atol=atol):
-            return
+    if _unitaries_equivalent(u_a, u_b, atol=atol, allow_global_phase=True):
+        return
 
     max_diff = float(np.max(np.abs(u_a - u_b)))
     raise AssertionError(

@@ -29,18 +29,7 @@ _Z = np.array([[1, 0], [0, -1]], dtype=np.complex128)
 # ---------------------------------------------------------------------------
 
 
-def _kraus_to_choi(kraus_ops: list[NDArray[np.complex128]]) -> NDArray[np.complex128]:
-    """Convert a list of Kraus operators to the Choi matrix.
-
-    Uses column-vectorisation: Choi = sum_i |K_i)(K_i|, giving a d^2 x d^2
-    matrix for d x d Kraus operators.
-    """
-    d = kraus_ops[0].shape[0]
-    choi = np.zeros((d * d, d * d), dtype=np.complex128)
-    for K in kraus_ops:
-        k_vec = K.flatten(order="F").reshape(-1, 1)
-        choi += k_vec @ k_vec.conj().T
-    return choi
+from pytest_quantum._internal import _kraus_to_choi  # noqa: E402
 
 
 def _average_channel_fidelity(kraus_ops: list[NDArray[np.complex128]]) -> float:

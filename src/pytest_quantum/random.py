@@ -192,3 +192,301 @@ def depolarizing_kraus(
         np.sqrt(p / 3) * Y,
         np.sqrt(p / 3) * Z,
     ]
+
+
+def random_qiskit_circuit(
+    n_qubits: int,
+    depth: int,
+    *,
+    gate_set: frozenset[str] | None = None,
+    seed: int | None = None,
+) -> object:
+    """Generate a random Qiskit ``QuantumCircuit``.
+
+    Args:
+        n_qubits: Number of qubits.
+        depth: Number of gate layers.
+        gate_set: Optional frozenset of gate names. Defaults to
+            ``{"h", "cx", "rz", "x", "y", "z", "s", "t", "swap"}``.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        A ``qiskit.QuantumCircuit`` instance.
+
+    Raises:
+        ImportError: If Qiskit is not installed.
+
+    Example::
+
+        qc = random_qiskit_circuit(3, 5, seed=42)
+    """
+    try:
+        from qiskit import QuantumCircuit
+    except ImportError:
+        raise ImportError(
+            "Qiskit is required for random_qiskit_circuit. "
+            "Install it with: pip install pytest-quantum[qiskit]"
+        ) from None
+
+    if gate_set is None:
+        gate_set = frozenset({"h", "cx", "rz", "x", "y", "z", "s", "t", "swap"})
+
+    rng = np.random.default_rng(seed)
+    qc = QuantumCircuit(n_qubits)
+    gate_list = sorted(gate_set)
+    single_gates = [g for g in gate_list if g not in ("cx", "swap", "cz")]
+    [g for g in gate_list if g in ("cx", "swap", "cz")]
+
+    for _ in range(depth):
+        gate = rng.choice(gate_list)
+        if gate in ("cx", "swap", "cz") and n_qubits >= 2:
+            qubits = rng.choice(n_qubits, size=2, replace=False).tolist()
+            if gate == "cx":
+                qc.cx(qubits[0], qubits[1])
+            elif gate == "swap":
+                qc.swap(qubits[0], qubits[1])
+            elif gate == "cz":
+                qc.cz(qubits[0], qubits[1])
+        elif gate in ("cx", "swap", "cz") and n_qubits < 2:
+            # Two-qubit gate on single qubit: fall back to single-qubit gate
+            qubit = int(rng.integers(n_qubits))
+            if single_gates:
+                fallback = rng.choice(single_gates)
+                if fallback == "rz":
+                    angle = float(rng.uniform(0, 2 * np.pi))
+                    qc.rz(angle, qubit)
+                else:
+                    getattr(qc, fallback)(qubit)
+            else:
+                qc.h(qubit)
+        elif gate == "rz":
+            qubit = int(rng.integers(n_qubits))
+            angle = float(rng.uniform(0, 2 * np.pi))
+            qc.rz(angle, qubit)
+        elif single_gates:
+            qubit = int(rng.integers(n_qubits))
+            getattr(qc, gate)(qubit)
+        else:
+            # Fallback: apply H
+            qubit = int(rng.integers(n_qubits))
+            qc.h(qubit)
+
+    return qc
+
+
+def random_cirq_circuit(
+    n_qubits: int,
+    depth: int,
+    *,
+    gate_set: frozenset[str] | None = None,
+    seed: int | None = None,
+) -> object:
+    """Generate a random Cirq ``Circuit``.
+
+    Args:
+        n_qubits: Number of qubits.
+        depth: Number of gate layers.
+        gate_set: Optional frozenset of gate names. Defaults to
+            ``{"H", "CNOT", "Rz", "X", "Y", "Z", "S", "T", "SWAP"}``.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        A ``cirq.Circuit`` instance.
+
+    Raises:
+        ImportError: If Cirq is not installed.
+
+    Example::
+
+        circuit = random_cirq_circuit(3, 5, seed=42)
+    """
+    try:
+        import cirq
+    except ImportError:
+        raise ImportError(
+            "Cirq is required for random_cirq_circuit. "
+            "Install it with: pip install pytest-quantum[cirq]"
+        ) from None
+
+    if gate_set is None:
+        gate_set = frozenset({"H", "CNOT", "Rz", "X", "Y", "Z", "S", "T", "SWAP"})
+
+    rng = np.random.default_rng(seed)
+    qubits = cirq.LineQubit.range(n_qubits)
+    gate_map = {
+        "H": cirq.H,
+        "X": cirq.X,
+        "Y": cirq.Y,
+        "Z": cirq.Z,
+        "S": cirq.S,
+        "T": cirq.T,
+    }
+    two_qubit_gates = {"CNOT", "SWAP", "CZ"}
+    gate_list = sorted(gate_set)
+    ops = []
+
+    for _ in range(depth):
+        gate_name = rng.choice(gate_list)
+        if gate_name in two_qubit_gates and n_qubits >= 2:
+            idxs = rng.choice(n_qubits, size=2, replace=False)
+            q0, q1 = qubits[idxs[0]], qubits[idxs[1]]
+            if gate_name == "CNOT":
+                ops.append(cirq.CNOT(q0, q1))
+            elif gate_name == "SWAP":
+                ops.append(cirq.SWAP(q0, q1))
+            elif gate_name == "CZ":
+                ops.append(cirq.CZ(q0, q1))
+        elif gate_name == "Rz":
+            qubit = qubits[int(rng.integers(n_qubits))]
+            angle = float(rng.uniform(0, 2 * np.pi))
+            ops.append(cirq.rz(angle)(qubit))
+        elif gate_name in gate_map:
+            qubit = qubits[int(rng.integers(n_qubits))]
+            ops.append(gate_map[gate_name](qubit))
+        else:
+            qubit = qubits[int(rng.integers(n_qubits))]
+            ops.append(cirq.H(qubit))
+
+    return cirq.Circuit(ops)
+
+
+def random_braket_circuit(
+    n_qubits: int,
+    depth: int,
+    *,
+    seed: int | None = None,
+) -> object:
+    """Generate a random Braket ``Circuit``.
+
+    Args:
+        n_qubits: Number of qubits.
+        depth: Number of gate layers.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        A ``braket.circuits.Circuit`` instance.
+
+    Raises:
+        ImportError: If Braket SDK is not installed.
+
+    Example::
+
+        circuit = random_braket_circuit(3, 5, seed=42)
+    """
+    try:
+        from braket.circuits import Circuit, gates
+    except ImportError:
+        raise ImportError(
+            "Amazon Braket SDK is required for random_braket_circuit. "
+            "Install it with: pip install pytest-quantum[braket]"
+        ) from None
+
+    rng = np.random.default_rng(seed)
+    circuit = Circuit()
+    gate_names = ["h", "x", "y", "z", "s", "t", "cnot", "swap", "rz"]
+    single_gates = {
+        "h": gates.H,
+        "x": gates.X,
+        "y": gates.Y,
+        "z": gates.Z,
+        "s": gates.S,
+        "t": gates.T,
+    }
+    two_gates = {"cnot", "swap"}
+
+    for _ in range(depth):
+        gate_name = rng.choice(gate_names)
+        if gate_name in two_gates and n_qubits >= 2:
+            qubits = rng.choice(n_qubits, size=2, replace=False).tolist()
+            if gate_name == "cnot":
+                circuit.cnot(qubits[0], qubits[1])
+            elif gate_name == "swap":
+                circuit.swap(qubits[0], qubits[1])
+        elif gate_name == "rz":
+            qubit = int(rng.integers(n_qubits))
+            angle = float(rng.uniform(0, 2 * np.pi))
+            circuit.rz(qubit, angle)
+        elif gate_name in single_gates:
+            qubit = int(rng.integers(n_qubits))
+            getattr(circuit, gate_name)(qubit)
+        else:
+            qubit = int(rng.integers(n_qubits))
+            circuit.h(qubit)
+
+    return circuit
+
+
+def random_pennylane_circuit(
+    n_qubits: int,
+    depth: int,
+    *,
+    seed: int | None = None,
+) -> object:
+    """Generate a random PennyLane ``QNode``.
+
+    Args:
+        n_qubits: Number of qubits.
+        depth: Number of gate layers.
+        seed: Random seed for reproducibility.
+
+    Returns:
+        A ``pennylane.QNode`` instance.
+
+    Raises:
+        ImportError: If PennyLane is not installed.
+
+    Example::
+
+        qnode = random_pennylane_circuit(3, 5, seed=42)
+    """
+    try:
+        import pennylane as qml
+    except ImportError:
+        raise ImportError(
+            "PennyLane is required for random_pennylane_circuit. "
+            "Install it with: pip install pytest-quantum[pennylane]"
+        ) from None
+
+    rng = np.random.default_rng(seed)
+    dev = qml.device("default.qubit", wires=n_qubits)
+
+    # Pre-generate the random gate sequence
+    gate_names = ["H", "X", "Y", "Z", "S", "T", "CNOT", "SWAP", "RZ"]
+    single_gates = {
+        "H": qml.Hadamard,
+        "X": qml.PauliX,
+        "Y": qml.PauliY,
+        "Z": qml.PauliZ,
+        "S": qml.S,
+        "T": qml.T,
+    }
+    two_gates = {"CNOT", "SWAP"}
+
+    gate_sequence: list[tuple[str, list[int], float | None]] = []
+    for _ in range(depth):
+        gate_name = rng.choice(gate_names)
+        if gate_name in two_gates and n_qubits >= 2:
+            qubits = rng.choice(n_qubits, size=2, replace=False).tolist()
+            gate_sequence.append((gate_name, qubits, None))
+        elif gate_name == "RZ":
+            qubit = int(rng.integers(n_qubits))
+            angle = float(rng.uniform(0, 2 * np.pi))
+            gate_sequence.append((gate_name, [qubit], angle))
+        else:
+            qubit = int(rng.integers(n_qubits))
+            gate_sequence.append((gate_name, [qubit], None))
+
+    @qml.qnode(dev)  # type: ignore[untyped-decorator]
+    def circuit() -> object:
+        for gate_name, qubits, param in gate_sequence:
+            if gate_name == "CNOT":
+                qml.CNOT(wires=qubits)
+            elif gate_name == "SWAP":
+                qml.SWAP(wires=qubits)
+            elif gate_name == "RZ":
+                qml.RZ(param, wires=qubits[0])
+            elif gate_name in single_gates:
+                single_gates[gate_name](wires=qubits[0])
+        return qml.state()
+
+    return circuit

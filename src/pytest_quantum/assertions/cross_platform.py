@@ -10,10 +10,8 @@ from typing import TYPE_CHECKING
 
 import numpy as np
 
+from pytest_quantum._internal import _unitaries_equivalent
 from pytest_quantum.converters.to_unitary import (
-    _is_cirq,
-    _is_pytket,
-    _is_qiskit,
     _reverse_qubit_order,
     to_unitary,
 )
@@ -45,28 +43,6 @@ def _framework_label(circuit: object, hint: str | None) -> str:
     return mod.split(".")[0]
 
 
-def _unitaries_equivalent(
-    u_a: NDArray[np.complex128],
-    u_b: NDArray[np.complex128],
-    *,
-    atol: float,
-    allow_global_phase: bool,
-) -> bool:
-    """Return True if u_a and u_b are close (optionally up to global phase)."""
-    if np.allclose(u_a, u_b, atol=atol):
-        return True
-    if not allow_global_phase:
-        return False
-    flat_idx = int(np.argmax(np.abs(u_a)))
-    a_val = u_a.flat[flat_idx]
-    b_val = u_b.flat[flat_idx]
-    if abs(a_val) > 1e-10 and abs(b_val) > 1e-10:
-        phase = a_val / b_val
-        if np.allclose(u_a, phase * u_b, atol=atol):
-            return True
-    return False
-
-
 def _normalise_endianness(
     u_a: NDArray[np.complex128],
     circuit_a: object,
@@ -78,12 +54,22 @@ def _normalise_endianness(
     Qiskit uses little-endian; Cirq and pytket use big-endian.
     When comparing across these conventions, reverse one of the unitaries.
     """
-    big_endian_a = _is_cirq(circuit_a) or _is_pytket(circuit_a)
-    big_endian_b = _is_cirq(circuit_b) or _is_pytket(circuit_b)
+    from pytest_quantum.adapters import get_adapter
 
-    if _is_qiskit(circuit_a) and big_endian_b:
+    try:
+        adapter_a = get_adapter(circuit_a)
+        big_endian_a = adapter_a.big_endian
+    except TypeError:
+        big_endian_a = False
+    try:
+        adapter_b = get_adapter(circuit_b)
+        big_endian_b = adapter_b.big_endian
+    except TypeError:
+        big_endian_b = False
+
+    if not big_endian_a and big_endian_b:
         u_a = _reverse_qubit_order(u_a)
-    elif big_endian_a and _is_qiskit(circuit_b):
+    elif big_endian_a and not big_endian_b:
         u_b = _reverse_qubit_order(u_b)
     return u_a, u_b
 

@@ -45,7 +45,7 @@ jobs:
       - name: Install core dependencies only
         run: uv sync --no-group dev
       - name: Run core tests
-        run: uv run pytest tests/test_stats.py tests/test_plugin.py tests/test_assertions_states.py tests/test_assertions_distributions.py tests/test_assertions_unitary.py tests/test_assertions_structure.py -v --cov=pytest_quantum --cov-report=xml
+        run: uv run pytest tests/test_stats.py tests/test_plugin.py tests/test_assertions_states.py tests/test_assertions_distributions.py tests/test_assertions_unitary.py tests/test_assertions_structure.py tests/test_adapters.py tests/test_internal.py tests/test_config.py tests/test_markers.py tests/test_retry.py tests/test_reporting.py tests/test_assertions_resource_estimation.py tests/test_assertions_topology.py tests/test_assertions_tomography.py tests/test_assertions_qec.py tests/test_random_circuits.py tests/test_quantum_only.py -v --cov=pytest_quantum --cov-report=xml
       - name: Upload coverage
         uses: codecov/codecov-action@v5
         if: matrix.os == 'ubuntu-latest' && matrix.python-version == '3.12'
@@ -136,3 +136,88 @@ jobs:
         run: uv sync --extra graphix
       - name: Run Graphix tests
         run: uv run pytest tests/test_assertions_states.py tests/test_stats.py -v
+
+  # -------------------------------------------------------------------------
+  # Pytket integration tests
+  # -------------------------------------------------------------------------
+  test-pytket:
+    name: Pytket integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Pytket extras
+        run: uv sync --extra pytket
+      - name: Run Pytket tests
+        run: uv run pytest tests/test_integration_pytket.py -v
+
+  # -------------------------------------------------------------------------
+  # Stim integration tests
+  # -------------------------------------------------------------------------
+  test-stim:
+    name: Stim integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Stim extras
+        run: uv sync --extra stim
+      - name: Run Stim tests
+        run: uv run pytest tests/test_integration_stim.py -v
+
+  # -------------------------------------------------------------------------
+  # Braket integration tests (local simulator)
+  # -------------------------------------------------------------------------
+  test-braket:
+    name: Braket integration tests (local simulator)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Braket extras
+        run: uv sync --extra braket
+      - name: Run Braket tests
+        run: uv run pytest tests/test_integration_braket.py -v
+
+  # -------------------------------------------------------------------------
+  # Mitiq integration tests
+  # -------------------------------------------------------------------------
+  test-mitiq:
+    name: Mitiq integration tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install with Mitiq extras
+        run: uv sync --extra mitiq --extra qiskit
+      - name: Run Mitiq tests
+        run: uv run pytest tests/test_assertions_mitiq.py -v
+
+  # -------------------------------------------------------------------------
+  # Hypothesis property-based tests
+  # -------------------------------------------------------------------------
+  test-hypothesis:
+    name: Hypothesis property-based tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          python-version: "3.12"
+      - name: Install dev dependencies
+        run: uv sync --group dev
+      - name: Run Hypothesis tests
+        run: uv run pytest tests/test_hypothesis_strategies.py -v

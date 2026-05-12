@@ -39,9 +39,13 @@ except ImportError:
     _HYPOTHESIS_AVAILABLE = False
 
 __all__ = [
+    "braket_circuits",
+    "cirq_circuits",
     "count_distributions",
     "density_matrices",
     "kraus_channels",
+    "pennylane_circuits",
+    "qiskit_circuits",
     "statevectors",
     "unitary_matrices",
 ]
@@ -212,3 +216,125 @@ def kraus_channels(
         return random_kraus_channel(n_qubits, n_kraus=n_kraus, seed=seed)
 
     return _strategy()
+
+
+@st.composite
+def qiskit_circuits(
+    draw: st.DrawFn,
+    n_qubits: st.SearchStrategy[int] = st.integers(1, 4),
+    depth: st.SearchStrategy[int] = st.integers(1, 5),
+) -> object:
+    """Hypothesis strategy that generates random Qiskit circuits.
+
+    Args:
+        n_qubits: Strategy for number of qubits. Default: 1–4.
+        depth: Strategy for circuit depth. Default: 1–5.
+
+    Returns:
+        A ``qiskit.QuantumCircuit`` instance.
+
+    Example::
+
+        @given(qiskit_circuits())
+        def test_circuit_has_unitary(qc):
+            from pytest_quantum import assert_unitary
+
+            u = to_unitary(qc)
+            assert_unitary(u)
+    """
+    from pytest_quantum.random import random_qiskit_circuit
+
+    nq = draw(n_qubits)
+    d = draw(depth)
+    seed = draw(st.integers(0, 2**32 - 1))
+    return random_qiskit_circuit(nq, d, seed=seed)
+
+
+@st.composite
+def cirq_circuits(
+    draw: st.DrawFn,
+    n_qubits: st.SearchStrategy[int] = st.integers(1, 4),
+    depth: st.SearchStrategy[int] = st.integers(1, 5),
+) -> object:
+    """Hypothesis strategy that generates random Cirq circuits.
+
+    Args:
+        n_qubits: Strategy for number of qubits. Default: 1–4.
+        depth: Strategy for circuit depth. Default: 1–5.
+
+    Returns:
+        A ``cirq.Circuit`` instance.
+
+    Example::
+
+        @given(cirq_circuits())
+        def test_circuit_has_unitary(circuit):
+            u = cirq.unitary(circuit)
+            assert u.shape[0] == u.shape[1]
+    """
+    from pytest_quantum.random import random_cirq_circuit
+
+    nq = draw(n_qubits)
+    d = draw(depth)
+    seed = draw(st.integers(0, 2**32 - 1))
+    return random_cirq_circuit(nq, d, seed=seed)
+
+
+@st.composite
+def braket_circuits(
+    draw: st.DrawFn,
+    n_qubits: st.SearchStrategy[int] = st.integers(1, 4),
+    depth: st.SearchStrategy[int] = st.integers(1, 5),
+) -> object:
+    """Hypothesis strategy that generates random Braket circuits.
+
+    Args:
+        n_qubits: Strategy for number of qubits. Default: 1–4.
+        depth: Strategy for circuit depth. Default: 1–5.
+
+    Returns:
+        A ``braket.circuits.Circuit`` instance.
+
+    Example::
+
+        @given(braket_circuits())
+        def test_circuit_has_unitary(circuit):
+            u = circuit.to_unitary()
+            assert u.shape[0] == u.shape[1]
+    """
+    from pytest_quantum.random import random_braket_circuit
+
+    nq = draw(n_qubits)
+    d = draw(depth)
+    seed = draw(st.integers(0, 2**32 - 1))
+    return random_braket_circuit(nq, d, seed=seed)
+
+
+@st.composite
+def pennylane_circuits(
+    draw: st.DrawFn,
+    n_qubits: st.SearchStrategy[int] = st.integers(1, 4),
+    depth: st.SearchStrategy[int] = st.integers(1, 5),
+) -> object:
+    """Hypothesis strategy that generates random PennyLane QNodes.
+
+    Args:
+        n_qubits: Strategy for number of qubits. Default: 1–4.
+        depth: Strategy for circuit depth. Default: 1–5.
+
+    Returns:
+        A ``pennylane.QNode`` instance.
+
+    Example::
+
+        @given(pennylane_circuits())
+        def test_qnode_returns_state(qnode):
+            state = qnode()
+            assert len(state) > 0
+    """
+    from pytest_quantum.random import random_pennylane_circuit
+
+    nq = draw(n_qubits)
+    d = draw(depth)
+    seed = draw(st.integers(0, 2**32 - 1))
+    return random_pennylane_circuit(nq, d, seed=seed)

@@ -10,14 +10,10 @@ so failures are easy to diagnose in CI logs.
 from __future__ import annotations
 
 import time
-from typing import TYPE_CHECKING, Any
+from typing import Any
 
 import numpy as np
 from scipy import optimize, stats
-
-if TYPE_CHECKING:
-    from collections.abc import Callable
-
 
 # ---------------------------------------------------------------------------
 # Public assertions
@@ -907,24 +903,11 @@ def assert_interleaved_rb(
 # ---------------------------------------------------------------------------
 
 
-def _backend_name(backend: object) -> str:
-    """Return a human-readable name for *backend*."""
-    name = getattr(backend, "name", None)
-    if callable(name):
-        return str(name())
-    if isinstance(name, str):
-        return name
-    return repr(backend)
-
-
-def _is_ibm_backend(backend: Any) -> bool:
-    """Return True if *backend* is a ``qiskit_ibm_runtime.IBMBackend``."""
-    try:
-        from qiskit_ibm_runtime import IBMBackend
-
-        return isinstance(backend, IBMBackend)
-    except ImportError:
-        return False
+from pytest_quantum._internal import (  # noqa: E402
+    _backend_name,
+    _is_ibm_backend,
+    _run_circuit,
+)
 
 
 def _get_backend_dt(backend: Any) -> float:
@@ -945,54 +928,6 @@ def _get_backend_dt(backend: Any) -> float:
         if dt is not None and isinstance(dt, (int, float)):
             return float(dt)
     return 0.0
-
-
-def _run_circuit(
-    qc: Any,
-    backend: Any,
-    *,
-    shots: int,
-    is_ibm: bool,
-    qk_transpile: Callable[..., Any],
-) -> dict[str, int]:
-    """Run *qc* on *backend* and return measurement counts."""
-    transpiled = qk_transpile(qc, backend, optimization_level=0)
-
-    if is_ibm:
-        try:
-            from qiskit_ibm_runtime import SamplerV2
-
-            sampler = SamplerV2(backend)
-            job = sampler.run([transpiled], shots=shots)
-            result = job.result()
-            pub_result = result[0]
-            return _extract_sampler_counts(pub_result)
-        except ImportError:
-            pass
-
-    job = backend.run(transpiled, shots=shots)
-    result = job.result()
-    counts: dict[str, int] = result.get_counts()
-    return counts
-
-
-def _extract_sampler_counts(pub_result: Any) -> dict[str, int]:
-    """Extract counts dict from a SamplerV2 PubResult."""
-    data = pub_result.data
-    for name in ("meas", "c", "c0", "cr", "measure"):
-        bit_array = getattr(data, name, None)
-        if bit_array is not None and hasattr(bit_array, "get_counts"):
-            counts: dict[str, int] = bit_array.get_counts()
-            return counts
-    for name in getattr(data, "__dataclass_fields__", {}):
-        bit_array = getattr(data, name, None)
-        if bit_array is not None and hasattr(bit_array, "get_counts"):
-            counts = bit_array.get_counts()
-            return counts
-    raise AssertionError(
-        "Could not extract counts from SamplerV2 result. "
-        "Ensure the circuit has measurements."
-    )
 
 
 def _build_qv_circuit(
